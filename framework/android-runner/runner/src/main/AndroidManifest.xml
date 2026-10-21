@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- The command server listens on the device's loopback interface (reached via `adb forward`). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="MTF runner"
+        android:allowBackup="false"
+        android:hasCode="true" />
+
+    <instrumentation
+        android:name=".RunnerInstrumentation"
+        android:label="MTF UIAutomator runner"
+        android:targetPackage="dev.mtf.androidrunner" />
+</manifest>

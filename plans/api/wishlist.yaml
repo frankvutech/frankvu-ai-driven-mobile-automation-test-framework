@@ -1,0 +1,60 @@
+version: 1
+name: api_wishlist
+title: Wishlist add and remove (the apps have no wishlist UI; API only)
+tags: [api, wishlist]
+platforms: [api]
+actors:
+  qa: {account: qa}
+preconditions:
+  - fixture: reset_backend_data
+steps:
+  - id: seeded_wishlist
+    api:
+      method: GET
+      path: /api/v1/wishlist
+      as: qa
+      expect:
+        status: 200
+        json:
+          - {path: items.length, equals: 1}
+          - {path: "items[0].id", equals: product_002}
+  - id: add
+    api:
+      method: POST
+      path: /api/v1/wishlist/items
+      as: qa
+      body: {productId: product_005}
+      expect:
+        status: 201
+        json:
+          - {path: items.length, equals: 2}
+  - id: duplicate_conflict
+    api:
+      method: POST
+      path: /api/v1/wishlist/items
+      as: qa
+      body: {productId: product_005}
+      expect:
+        status: 409
+        json:
+          - {path: error.code, equals: ALREADY_IN_WISHLIST}
+  - id: remove
+    api:
+      method: DELETE
+      path: /api/v1/wishlist/items/{productId}
+      path_params: {productId: product_005}
+      as: qa
+      expect:
+        status: 200
+        json:
+          - {path: items.length, equals: 1}
+  - id: remove_missing
+    api:
+      method: DELETE
+      path: /api/v1/wishlist/items/{productId}
+      path_params: {productId: product_005}
+      as: qa
+      expect:
+        status: 404
+        json:
+          - {path: error.code, equals: WISHLIST_ITEM_NOT_FOUND}

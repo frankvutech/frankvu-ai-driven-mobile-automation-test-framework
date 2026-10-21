@@ -1,0 +1,26 @@
+version: 1
+name: dialogs_dismiss_with_back
+title: A confirmation dialog can be dismissed with system Back without confirming
+description: >
+  Android only. The dialog's own buttons are not addressable by test ID in the supplied APK (separate
+  window without testTagsAsResourceId), so this plan verifies what the black-box runner can observe:
+  the dialog opens, system Back dismisses it, nothing is confirmed and the screen is usable again.
+tags: [dialogs, android]
+platforms: [android]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: open_scenario
+    with: {scenario: dialogs}
+  - interaction: tap
+    target: dialogs_open_confirmation
+  - assert: {question: is_visible, with: {target: dialogs_open_confirmation}, expect: {equals: false}, timeout_ms: 3000}
+  - interaction: back
+  - assert: {question: is_visible, with: {target: dialogs_open_confirmation}, expect: {equals: true}, timeout_ms: 3000}
+  - assert: {question: dialog_result, expect: {not_equals: confirmed}}

@@ -1,0 +1,32 @@
+version: 1
+name: auth_login_failures
+title: Login validation and every deterministic login failure
+description: >
+  Empty and malformed input are rejected by the form; unknown, locked and wrong-password logins are
+  rejected by the backend. Messages are the app's English strings (the run pins the locale to en).
+tags: [auth, validation, negative]
+platforms: [android, ios]
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+steps:
+  - task: submit_login
+    with: {email: "${inputs.empty}", password: "${inputs.wrong_password}"}
+  - assert: {question: login_error_message, expect: {equals: Email is required.}, timeout_ms: 5000}
+  - task: submit_login
+    with: {email: "${inputs.malformed_email}", password: "${inputs.wrong_password}"}
+  - assert: {question: login_error_message, expect: {equals: Enter a valid email address.}, timeout_ms: 5000}
+  - task: submit_login
+    with: {email: "${accounts.customer.email}", password: "${inputs.empty}"}
+  - assert: {question: login_error_message, expect: {equals: Password is required.}, timeout_ms: 5000}
+  - task: submit_login
+    with: {email: "${inputs.unknown_email}", password: "${inputs.wrong_password}"}
+  - assert: {question: login_error_message, expect: {equals: No account exists for this email.}, timeout_ms: 10000}
+  - task: submit_login
+    with: {email: "${accounts.locked.email}", password: "${secret:accounts.locked.password}"}
+  - assert: {question: login_error_message, expect: {equals: This account is locked.}, timeout_ms: 10000}
+  - task: submit_login
+    with: {email: "${accounts.customer.email}", password: "${inputs.wrong_password}"}
+  - assert: {question: login_error_message, expect: {equals: Incorrect password.}, timeout_ms: 10000}
+  - assert: {question: current_screen, expect: {equals: login_screen}}

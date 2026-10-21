@@ -1,0 +1,48 @@
+version: 1
+name: api_validation_and_errors
+title: Input validation, conflicts, not-found and deterministic server errors
+tags: [api, errors]
+platforms: [api]
+preconditions:
+  - fixture: reset_backend_data
+steps:
+  - id: register_invalid_fields
+    api:
+      method: POST
+      path: /api/v1/auth/register
+      body: {displayName: "", email: "${inputs.malformed_email}", password: short}
+      expect:
+        status: 400
+        json:
+          - {path: error.code, equals: VALIDATION_ERROR}
+          - {path: error.details.length, greater_than: 1}
+  - id: register_existing_email_conflict
+    api:
+      method: POST
+      path: /api/v1/auth/register
+      body: {displayName: Someone, email: "${accounts.customer.email}", password: "${secret:accounts.qa.password}"}
+      expect:
+        status: 409
+        json:
+          - {path: error.code, equals: EMAIL_TAKEN}
+  - id: invalid_order_id
+    api:
+      method: GET
+      path: /api/v1/orders/{id}
+      path_params: {id: not-a-number}
+      as: customer
+      expect:
+        status: 400
+        json:
+          - {path: error.code, equals: INVALID_ID}
+  - id: deterministic_server_error
+    api:
+      method: GET
+      path: /api/v1/test/server-error
+      expect:
+        status: 500
+        json:
+          - {path: error.code, equals: INTERNAL_ERROR}
+          - {path: error.message, not_contains: Exception}
+actors:
+  customer: {account: customer}

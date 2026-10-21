@@ -1,0 +1,603 @@
+# Backend API contract for Mobile Test Playground.
+#
+# Copied verbatim (below this header) from the backend's published spec:
+#   frankvutech/frankvu-mobile-test-lab: backend/src/main/resources/openapi/openapi.yaml @ 5f42818
+#   also served by a running backend at GET /openapi/openapi.yaml
+# Refresh and verify with: mtf contracts check-openapi --base-url <backend>
+# Do not hand-edit: API steps are validated against this file, so it must match the real backend.
+openapi: 3.0.3
+info:
+  title: Mobile Test Playground API
+  version: 1.0.0
+  description: |
+    Deterministic REST API for the Mobile Test Playground apps and API automation practice.
+
+    All seed data is fixed and can be restored with `POST /api/v1/test/reset` (enabled in local
+    development and CI only). Credentials are **local test credentials only**:
+
+    | Email | Password | Role |
+    |---|---|---|
+    | test@example.com | Password123! | CUSTOMER |
+    | qa@example.com | QaPassword123! | CUSTOMER |
+    | admin@example.com | Admin123! | ADMIN |
+    | locked@example.com | Locked123! | CUSTOMER (locked) |
+
+    Errors always use the `ErrorResponse` shape with a stable `code`.
+servers:
+  - url: http://localhost:8080
+    description: Local development (host)
+  - url: http://10.0.2.2:8080
+    description: Android emulator to host
+tags:
+  - name: Health
+  - name: Auth
+  - name: Products
+  - name: Cart
+  - name: Wishlist
+  - name: Orders
+  - name: Admin
+  - name: Test support
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness check
+      responses:
+        "200":
+          description: The process is running.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+              example: { status: ok, checks: {} }
+  /ready:
+    get:
+      tags: [Health]
+      summary: Readiness check (database reachable)
+      responses:
+        "200":
+          description: Ready to serve traffic.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+              example: { status: ready, checks: { database: up } }
+        "503":
+          description: The database is not reachable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a CUSTOMER account and receive a token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+            example: { displayName: Ada Lovelace, email: ada@example.com, password: Analytical1! }
+      responses:
+        "201":
+          description: Registered and signed in.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409":
+          description: "`EMAIL_TAKEN`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Exchange credentials for a bearer token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+            example: { email: test@example.com, password: Password123! }
+      responses:
+        "200":
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+              example:
+                token: eyJhbGciOiJIUzI1NiJ9...
+                tokenType: Bearer
+                expiresAt: 1767225600
+                user: { id: user_customer, email: test@example.com, displayName: Test Customer, role: CUSTOMER }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401":
+          description: "`UNKNOWN_USER` or `INVALID_PASSWORD` (deliberately distinct in this playground)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example: { error: { code: INVALID_PASSWORD, message: Incorrect password., details: [] } }
+        "403":
+          description: "`ACCOUNT_LOCKED`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /api/v1/auth/password-reset:
+    post:
+      tags: [Auth]
+      summary: Reset a password with the fixed test code
+      description: |
+        Test-only stand-in for an emailed reset flow: the code is always `123456`.
+        Tokens issued before the reset stay valid until they expire.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                code: { type: string, example: "123456" }
+                newPassword: { type: string }
+            example: { email: test@example.com, code: "123456", newPassword: NewPassword1! }
+      responses:
+        "204": { description: Password changed. }
+        "400":
+          description: "`VALIDATION_ERROR` or `INVALID_RESET_CODE`"
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+        "404":
+          description: "`UNKNOWN_USER`"
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: The current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: The authenticated user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current token
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: The token is revoked; further use returns 401 INVALID_TOKEN. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/products:
+    get:
+      tags: [Products]
+      summary: Search, filter, sort and paginate products
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Case-insensitive name search. }
+        - { name: category, in: query, schema: { type: string, enum: [Books, Electronics, Garden, Toys] } }
+        - { name: sort, in: query, schema: { type: string, enum: [id, name_asc, name_desc, price_asc, price_desc], default: id } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+      responses:
+        "200":
+          description: A page of products. A page beyond the last returns an empty `items` list.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductPage" }
+              example:
+                items:
+                  - { id: product_001, name: Product 001, description: Deterministic sample product number 001., category: Books, priceCents: 749, stock: 10 }
+                page: 1
+                size: 1
+                totalItems: 20
+                totalPages: 20
+        "400": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/products/{id}:
+    get:
+      tags: [Products]
+      summary: Product detail
+      parameters: [{ $ref: "#/components/parameters/ProductId" }]
+      responses:
+        "200":
+          description: The product.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/categories:
+    get:
+      tags: [Products]
+      summary: All categories
+      responses:
+        "200":
+          description: Sorted category names.
+          content:
+            application/json:
+              schema: { type: array, items: { type: string } }
+              example: [Books, Electronics, Garden, Toys]
+  /api/v1/cart:
+    get:
+      tags: [Cart]
+      summary: The caller's cart
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Cart" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [Cart]
+      summary: Clear the cart
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Cart" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/cart/items:
+    post:
+      tags: [Cart]
+      summary: Add a product (adds to any existing quantity)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddCartItemRequest" }
+            example: { productId: product_003, quantity: 2 }
+      responses:
+        "201": { $ref: "#/components/responses/Cart" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`INSUFFICIENT_STOCK` (product_020 is sold out; product_019 has 1 left)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /api/v1/cart/items/{productId}:
+    parameters: [{ name: productId, in: path, required: true, schema: { type: string } }]
+    patch:
+      tags: [Cart]
+      summary: Set the quantity of a cart line
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateQuantityRequest" }
+            example: { quantity: 5 }
+      responses:
+        "200": { $ref: "#/components/responses/Cart" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "`INSUFFICIENT_STOCK`", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+    delete:
+      tags: [Cart]
+      summary: Remove a cart line
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Cart" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/wishlist:
+    get:
+      tags: [Wishlist]
+      summary: The caller's wishlist (qa@example.com starts with product_002)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Wishlist" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/wishlist/items:
+    post:
+      tags: [Wishlist]
+      summary: Add a product to the wishlist
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WishlistRequest" }
+            example: { productId: product_005 }
+      responses:
+        "201": { $ref: "#/components/responses/Wishlist" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "`ALREADY_IN_WISHLIST`", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+  /api/v1/wishlist/items/{productId}:
+    delete:
+      tags: [Wishlist]
+      summary: Remove a product from the wishlist
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: productId, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { $ref: "#/components/responses/Wishlist" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/orders:
+    post:
+      tags: [Orders]
+      summary: Check out the cart into an order
+      description: Re-checks and decrements stock, creates the order, empties the cart — atomically.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "201":
+          description: The order. The first order after a reset is id 1, ORDER-0001.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { description: "`CART_EMPTY` or `INSUFFICIENT_STOCK`", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+    get:
+      tags: [Orders]
+      summary: The caller's orders
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Orders, oldest first.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Order" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: One of the caller's orders (another user's order is 404)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/OrderId" }]
+      responses:
+        "200":
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "400": { description: "`INVALID_ID`", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/admin/products:
+    get:
+      tags: [Admin]
+      summary: List products (admin view, same parameters as /products)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: A page of products., content: { application/json: { schema: { $ref: "#/components/schemas/ProductPage" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Admin]
+      summary: Create a product
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Product" }
+            example: { id: product_new, name: New Product, description: Created by a test., category: Toys, priceCents: 999, stock: 3 }
+      responses:
+        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { description: "`PRODUCT_EXISTS`", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+  /api/v1/admin/products/{id}:
+    parameters: [{ $ref: "#/components/parameters/ProductId" }]
+    put:
+      tags: [Admin]
+      summary: Replace a product
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Product" }
+      responses:
+        "200": { description: Updated., content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Admin]
+      summary: Delete a product
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "`PRODUCT_IN_USE` (in a cart or wishlist)", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+  /api/v1/admin/orders:
+    get:
+      tags: [Admin]
+      summary: All orders
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: All orders., content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Order" } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/admin/orders/{id}:
+    patch:
+      tags: [Admin]
+      summary: Change an order's status
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/OrderId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { status: { type: string, enum: [PLACED, SHIPPED, CANCELLED] } } }
+            example: { status: SHIPPED }
+      responses:
+        "200": { description: Updated order., content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/test/reset:
+    post:
+      tags: [Test support]
+      summary: Restore the seed data (local/CI only)
+      description: Deletes all users, products, carts, wishlists, orders and revoked tokens, reseeds, and restarts order numbering. Absent (404) when TEST_SUPPORT_ENABLED=false.
+      responses:
+        "204": { description: Reset complete. }
+  /api/v1/test/server-error:
+    get:
+      tags: [Test support]
+      summary: Always fails with 500 INTERNAL_ERROR
+      responses:
+        "500": { description: "`INTERNAL_ERROR`", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    ProductId: { name: id, in: path, required: true, schema: { type: string }, example: product_003 }
+    OrderId: { name: id, in: path, required: true, schema: { type: integer }, example: 1 }
+  responses:
+    ValidationError:
+      description: "`VALIDATION_ERROR` with per-field `details`, or `MALFORMED_REQUEST` for an unreadable body."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: The request contains invalid fields.
+              details: [{ field: email, message: Email is not valid. }]
+    Unauthorized:
+      description: "`UNAUTHORIZED` (no token) or `INVALID_TOKEN` (bad signature, expired or revoked)."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example: { error: { code: UNAUTHORIZED, message: A bearer token is required., details: [] } }
+    Forbidden:
+      description: "`FORBIDDEN`: authenticated but lacking the ADMIN role."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example: { error: { code: FORBIDDEN, message: This endpoint requires the ADMIN role., details: [] } }
+    NotFound:
+      description: "`PRODUCT_NOT_FOUND`, `CART_ITEM_NOT_FOUND`, `WISHLIST_ITEM_NOT_FOUND` or `ORDER_NOT_FOUND`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Cart:
+      description: The cart after the operation.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Cart" }
+    Wishlist:
+      description: The wishlist after the operation.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Wishlist" }
+  schemas:
+    Status:
+      type: object
+      properties:
+        status: { type: string }
+        checks: { type: object, additionalProperties: { type: string } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+    User:
+      type: object
+      required: [id, email, displayName, role]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        displayName: { type: string }
+        role: { type: string, enum: [CUSTOMER, ADMIN] }
+    LoginRequest:
+      type: object
+      properties:
+        email: { type: string }
+        password: { type: string }
+    RegisterRequest:
+      type: object
+      properties:
+        displayName: { type: string }
+        email: { type: string }
+        password: { type: string, description: "8–64 chars with uppercase, digit and special character." }
+    AuthResponse:
+      type: object
+      required: [token, tokenType, expiresAt, user]
+      properties:
+        token: { type: string }
+        tokenType: { type: string, example: Bearer }
+        expiresAt: { type: integer, format: int64, description: Epoch seconds. }
+        user: { $ref: "#/components/schemas/User" }
+    Product:
+      type: object
+      required: [id, name, description, category, priceCents, stock]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        category: { type: string }
+        priceCents: { type: integer }
+        stock: { type: integer }
+    ProductPage:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Product" } }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+    AddCartItemRequest:
+      type: object
+      properties:
+        productId: { type: string }
+        quantity: { type: integer, minimum: 1, maximum: 10, default: 1 }
+    UpdateQuantityRequest:
+      type: object
+      properties:
+        quantity: { type: integer, minimum: 1, maximum: 10 }
+    Cart:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product: { $ref: "#/components/schemas/Product" }
+              quantity: { type: integer }
+              lineTotalCents: { type: integer }
+        totalQuantity: { type: integer }
+        totalCents: { type: integer }
+    WishlistRequest:
+      type: object
+      properties:
+        productId: { type: string }
+    Wishlist:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Product" } }
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        orderNumber: { type: string, example: ORDER-0001 }
+        userId: { type: string }
+        status: { type: string, enum: [PLACED, SHIPPED, CANCELLED] }
+        totalCents: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId: { type: string }
+              name: { type: string }
+              priceCents: { type: integer }
+              quantity: { type: integer }

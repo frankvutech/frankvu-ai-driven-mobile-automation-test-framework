@@ -1,0 +1,21 @@
+version: 1
+name: api_health
+title: Health and readiness
+tags: [api, smoke]
+platforms: [api]
+steps:
+  - api:
+      method: GET
+      path: /health
+      expect:
+        status: 200
+        json:
+          - {path: status, equals: ok}
+  - api:
+      method: GET
+      path: /ready
+      expect:
+        status: 200
+        json:
+          - {path: status, equals: ready}
+          - {path: checks.database, equals: up}

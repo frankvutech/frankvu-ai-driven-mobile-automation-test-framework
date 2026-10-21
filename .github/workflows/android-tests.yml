@@ -1,0 +1,101 @@
+# Android UI tests against a PREBUILT APK. This job never runs `assemble` for the application:
+# it downloads the APK, installs it unchanged, and builds only the framework's runner APK.
+name: Android tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifacts_repository:
+        description: Repository whose workflow run published the APK and backend artifacts
+        default: frankvutech/frankvu-mobile-test-lab
+      artifacts_run_id:
+        description: Run ID that published them
+        required: true
+      apk_artifact:
+        description: Artifact containing app-debug.apk
+        default: android-apks
+      backend_artifact:
+        description: Artifact containing backend.jar
+        default: mtp-backend-jar
+  workflow_call:
+    inputs:
+      artifacts_repository: {type: string, default: frankvutech/frankvu-mobile-test-lab}
+      artifacts_run_id: {type: string, required: true}
+      apk_artifact: {type: string, default: android-apks}
+      backend_artifact: {type: string, default: mtp-backend-jar}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MTF_PASSWORD_CUSTOMER: ${{ secrets.MTF_PASSWORD_CUSTOMER }}
+      MTF_PASSWORD_QA: ${{ secrets.MTF_PASSWORD_QA }}
+      MTF_PASSWORD_ADMIN: ${{ secrets.MTF_PASSWORD_ADMIN }}
+      MTF_PASSWORD_LOCKED: ${{ secrets.MTF_PASSWORD_LOCKED }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the prebuilt APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.apk_artifact }}
+          repository: ${{ inputs.artifacts_repository }}
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ secrets.ARTIFACTS_READ_TOKEN || github.token }}
+          path: artifacts/android
+      - name: Download the prebuilt backend
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.backend_artifact }}
+          repository: ${{ inputs.artifacts_repository }}
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ secrets.ARTIFACTS_READ_TOKEN || github.token }}
+          path: artifacts/backend
+      - name: Locate the APK
+        run: |
+          APK=$(find artifacts/android -name 'app-debug.apk' | head -n 1)
+          test -n "$APK" || { echo "app-debug.apk not found in the artifact"; exit 1; }
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          sha256sum "$APK"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - name: Build the framework runner APK (not the app)
+        working-directory: framework/android-runner
+        run: ./gradlew --no-daemon :runner:assembleDebug
+      - name: Start the backend
+        run: |
+          DATABASE_URL='jdbc:h2:mem:mtf;DB_CLOSE_DELAY=-1' TEST_SUPPORT_ENABLED=true PORT=8080 \
+            nohup java -jar artifacts/backend/backend.jar > backend.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS localhost:8080/health && exit 0; sleep 2; done
+          cat backend.log; exit 1
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run plans on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot-save
+          script: uv run mtf run plans/shared plans/android --platform android --env ci --apk "$APK"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-test-reports
+          path: |
+            reports
+            backend.log

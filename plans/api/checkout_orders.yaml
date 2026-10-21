@@ -1,0 +1,99 @@
+version: 1
+name: api_checkout_orders
+title: Checkout creates an order, empties the cart and decrements stock
+tags: [api, checkout, orders]
+platforms: [api]
+actors:
+  customer: {account: customer}
+  qa: {account: qa}
+  admin: {account: admin}
+preconditions:
+  - fixture: reset_backend_data
+steps:
+  - id: empty_cart_cannot_check_out
+    api:
+      method: POST
+      path: /api/v1/orders
+      as: customer
+      expect:
+        status: 409
+        json:
+          - {path: error.code, equals: CART_EMPTY}
+  - fixture: seed_cart
+    actor: customer
+    with: {product: product_001, quantity: 2}
+  - fixture: seed_cart
+    actor: customer
+    with: {product: product_019, quantity: 1}
+  - id: checkout
+    api:
+      method: POST
+      path: /api/v1/orders
+      as: customer
+      expect:
+        status: 201
+        json:
+          - {path: orderNumber, equals: ORDER-0001}
+          - {path: status, equals: PLACED}
+          - {path: totalCents, equals: 6747}
+          - {path: items.length, equals: 2}
+      save: {order_id: id, order_number: orderNumber}
+  - id: cart_is_empty_after_checkout
+    api:
+      method: GET
+      path: /api/v1/cart
+      as: customer
+      expect:
+        status: 200
+        json:
+          - {path: items.length, equals: 0}
+  - id: stock_was_decremented
+    api:
+      method: GET
+      path: /api/v1/products/{id}
+      path_params: {id: product_019}
+      expect:
+        status: 200
+        json:
+          - {path: stock, equals: 0}
+  - id: order_listed
+    api:
+      method: GET
+      path: /api/v1/orders
+      as: customer
+      expect:
+        status: 200
+        json:
+          - {path: length, equals: 1}
+          - {path: "[0].orderNumber", equals: "${vars.order_number}"}
+  - id: order_detail
+    api:
+      method: GET
+      path: /api/v1/orders/{id}
+      path_params: {id: "${vars.order_id}"}
+      as: customer
+      expect:
+        status: 200
+        json:
+          - {path: orderNumber, equals: "${vars.order_number}"}
+  - id: other_users_order_is_not_found
+    api:
+      method: GET
+      path: /api/v1/orders/{id}
+      path_params: {id: "${vars.order_id}"}
+      as: qa
+      expect:
+        status: 404
+        json:
+          - {path: error.code, equals: ORDER_NOT_FOUND}
+  - id: admin_ships_the_order
+    api:
+      method: PATCH
+      path: /api/v1/admin/orders/{id}
+      path_params: {id: "${vars.order_id}"}
+      as: admin
+      body: {status: SHIPPED}
+      expect:
+        status: 200
+        json:
+          - {path: status, equals: SHIPPED}

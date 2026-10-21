@@ -1,0 +1,29 @@
+version: 1
+name: cart_remove_item
+title: Cart seeded through the API; removing a line in the UI updates UI and backend
+tags: [cart, api-setup]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: seed_cart
+    with: {product: product_002}
+  - fixture: seed_cart
+    with: {product: product_003}
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: open_cart
+  - assert: {question: product_is_in_cart, with: {product: product_002}, expect: {equals: true}, timeout_ms: 5000}
+  - task: remove_product_from_cart
+    with: {product: product_002}
+  - assert: {question: product_is_in_cart, with: {product: product_002}, expect: {equals: false}, timeout_ms: 5000}
+  - assert: {question: product_is_in_cart, with: {product: product_003}, expect: {equals: true}}
+  - assert: {question: cart_total, expect: {equals: "${products.product_003.price_display}"}, timeout_ms: 5000}
+  - assert: {question: api_cart_quantity, with: {product: product_002}, expect: {equals: 0}, timeout_ms: 5000}
+  - task: remove_product_from_cart
+    with: {product: product_003}
+  - assert: {question: cart_is_empty, expect: {equals: true}, timeout_ms: 5000}

@@ -1,0 +1,77 @@
+version: 1
+name: api_auth_login
+title: Login success and every deterministic login failure
+tags: [api, auth]
+platforms: [api]
+preconditions:
+  - fixture: reset_backend_data
+steps:
+  - id: login_success
+    api:
+      method: POST
+      path: /api/v1/auth/login
+      body: {email: "${accounts.customer.email}", password: "${secret:accounts.customer.password}"}
+      expect:
+        status: 200
+        json:
+          - {path: tokenType, equals: Bearer}
+          - {path: user.email, equals: "${accounts.customer.email}"}
+          - {path: user.role, equals: CUSTOMER}
+          - {path: user.displayName, equals: "${accounts.customer.display_name}"}
+  - id: wrong_password
+    api:
+      method: POST
+      path: /api/v1/auth/login
+      body: {email: "${accounts.customer.email}", password: "${inputs.wrong_password}"}
+      expect:
+        status: 401
+        json:
+          - {path: error.code, equals: INVALID_PASSWORD}
+  - id: unknown_user
+    api:
+      method: POST
+      path: /api/v1/auth/login
+      body: {email: "${inputs.unknown_email}", password: "${inputs.wrong_password}"}
+      expect:
+        status: 401
+        json:
+          - {path: error.code, equals: UNKNOWN_USER}
+  - id: locked_account
+    api:
+      method: POST
+      path: /api/v1/auth/login
+      body: {email: "${accounts.locked.email}", password: "${secret:accounts.locked.password}"}
+      expect:
+        status: 403
+        json:
+          - {path: error.code, equals: ACCOUNT_LOCKED}
+  - id: empty_body_is_a_validation_error
+    api:
+      method: POST
+      path: /api/v1/auth/login
+      body: {}
+      expect:
+        status: 400
+        json:
+          - {path: error.code, equals: VALIDATION_ERROR}
+          - {path: error.details.length, greater_than: 0}
+  - id: malformed_json
+    api:
+      method: POST
+      path: /api/v1/auth/login
+      raw_body: '{"email": '
+      expect:
+        status: 400
+        json:
+          - {path: error.code, equals: MALFORMED_REQUEST}
+  - id: me_with_token
+    api:
+      method: GET
+      path: /api/v1/auth/me
+      as: customer
+      expect:
+        status: 200
+        json:
+          - {path: id, equals: "${accounts.customer.user_id}"}
+actors:
+  customer: {account: customer}

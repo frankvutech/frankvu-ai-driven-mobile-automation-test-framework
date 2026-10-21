@@ -1,0 +1,72 @@
+version: 1
+name: api_auth_authorization
+title: Unauthorized, invalid-token and forbidden access
+tags: [api, auth, authorization]
+platforms: [api]
+actors:
+  customer: {account: customer}
+  admin: {account: admin}
+preconditions:
+  - fixture: reset_backend_data
+steps:
+  - id: no_token
+    api:
+      method: GET
+      path: /api/v1/cart
+      token: none
+      expect:
+        status: 401
+        json:
+          - {path: error.code, equals: UNAUTHORIZED}
+  - id: invalid_token
+    api:
+      method: GET
+      path: /api/v1/auth/me
+      token: invalid
+      expect:
+        status: 401
+        json:
+          - {path: error.code, equals: INVALID_TOKEN}
+  - id: customer_is_forbidden_from_admin
+    api:
+      method: GET
+      path: /api/v1/admin/orders
+      as: customer
+      expect:
+        status: 403
+        json:
+          - {path: error.code, equals: FORBIDDEN}
+  - id: admin_is_allowed
+    api:
+      method: GET
+      path: /api/v1/admin/orders
+      as: admin
+      expect:
+        status: 200
+        json:
+          - {path: length, equals: 0}
+  - id: customer_cannot_create_products
+    api:
+      method: POST
+      path: /api/v1/admin/products
+      as: customer
+      body: {id: product_new, name: New Product, description: Created by a test., category: Toys, priceCents: 999, stock: 3}
+      expect:
+        status: 403
+        json:
+          - {path: error.code, equals: FORBIDDEN}
+  - id: logout_revokes_the_token
+    api:
+      method: POST
+      path: /api/v1/auth/logout
+      as: customer
+      expect: {status: 204, schema: false}
+  - id: revoked_token_is_rejected
+    api:
+      method: GET
+      path: /api/v1/auth/me
+      as: customer
+      expect:
+        status: 401
+        json:
+          - {path: error.code, equals: INVALID_TOKEN}
