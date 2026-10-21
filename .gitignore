@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+
+# Secrets and local configuration
+.env
+config/run.local.yaml
+config/environments/staging.yaml
+
+# Run output
+reports/
+
+# Application artifacts are inputs, never committed
+artifacts/
+*.apk
+*.ipa
+*.xcresult
+
+# Android runner build
+framework/android-runner/.gradle/
+framework/android-runner/**/build/
+framework/android-runner/local.properties
+.kotlin/
+
+# iOS runner build
+framework/ios-runner/build/
+framework/ios-runner/DerivedData/
+xcuserdata/
+
+.DS_Store
+.idea/
