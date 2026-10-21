@@ -1,0 +1,75 @@
+# Framework quality gate: runs on every push/PR. Needs no device, no app artifact and no backend.
+name: Framework CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra anthropic
+      - name: Lint and format
+        run: |
+          uv run ruff check framework
+          uv run ruff format --check framework
+      - name: Type check
+        run: uv run mypy
+      - name: Unit tests
+        run: uv run pytest --junitxml=reports/junit.xml
+      - name: Contracts and plans
+        run: |
+          uv run mtf contracts schema --check
+          uv run mtf validate plans --env ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: framework-unit-test-results
+          path: reports/junit.xml
+
+  android-runner:
+    # Builds ONLY the framework's UIAutomator runner APK (framework/android-runner), never the app.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+        with:
+          # The default list includes the retired 'tools' package, which sdkmanager can no longer find.
+          packages: platform-tools
+      - name: Build and lint the runner
+        working-directory: framework/android-runner
+        run: ./gradlew --no-daemon :runner:ktlintCheck :runner:lintDebug :runner:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mtf-android-runner
+          path: framework/android-runner/runner/build/outputs/apk/debug/runner-debug.apk
+
+  ios-runner:
+    # build-for-testing of the framework's XCUITest runner (framework/ios-runner), never the app.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint and build the runner products
+        run: |
+          brew install xcodegen swiftlint
+          (cd framework/ios-runner && swiftlint lint --strict --quiet)
+          cd framework/ios-runner
+          xcodegen generate --quiet
+          xcodebuild build-for-testing -project MTFRunner.xcodeproj -scheme MTFRunner \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/DerivedData -quiet
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mtf-ios-runner
+          path: framework/ios-runner/build/DerivedData/Build/Products

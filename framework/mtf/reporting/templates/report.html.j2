@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ r.plan.name }} · {{ r.platform }} · {{ r.status | upper }}</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --border: #e3e3de;
+    --pass: #1f7a3f; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6;
+    --error: #8a4b00; --error-bg: #fff1dc; --skip: #5f6368; --skip-bg: #eeeeec;
+    --advisory: #4b3fb3; --advisory-bg: #efedfb; --code-bg: #f1f1ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --panel: #1f1f1d; --text: #ececea; --muted: #a3a39d; --border: #33332f;
+      --pass: #7ccf95; --pass-bg: #17301f; --fail: #f2928b; --fail-bg: #3a1a18;
+      --error: #f0b866; --error-bg: #34260f; --skip: #b5b5b0; --skip-bg: #2a2a27;
+      --advisory: #b4abf5; --advisory-bg: #26223f; --code-bg: #262624;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 28px 0 10px; }
+  .muted { color: var(--muted); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 2px 10px; font-size: 13px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .passed { color: var(--pass); background: var(--pass-bg); }
+  .failed { color: var(--fail); background: var(--fail-bg); }
+  .error, .rejected { color: var(--error); background: var(--error-bg); }
+  .skipped, .cancelled, .pending { color: var(--skip); background: var(--skip-bg); }
+  .hero { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .hero .badge { font-size: 14px; padding: 4px 12px; }
+  .counts span { margin-right: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  pre { background: var(--code-bg); padding: 10px; border-radius: 6px; overflow: auto; max-height: 360px; margin: 6px 0; }
+  details > summary { cursor: pointer; }
+  .msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .shot { max-width: 260px; border: 1px solid var(--border); border-radius: 6px; margin: 6px 6px 0 0; }
+  .advisory { border-color: var(--advisory); background: var(--advisory-bg); }
+  .advisory h2 { color: var(--advisory); margin-top: 0; }
+  .table-wrap { overflow-x: auto; }
+  .notice { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <span class="badge {{ r.status }}">{{ r.status | upper }}</span>
+    <div>
+      <h1>{{ r.plan.title or r.plan.name }}</h1>
+      <div class="muted">{{ r.plan.name }} · {{ r.platform }} · run {{ r.run_id }}</div>
+    </div>
+  </div>
+
+  {% if r.message %}
+  <div class="panel msg"><strong>{{ r.failure_category or "result" }}:</strong> {{ r.message }}</div>
+  {% endif %}
+
+  <h2>Summary</h2>
+  <div class="panel counts">
+    <span>Total <strong>{{ r.summary.total }}</strong></span>
+    <span class="badge passed">{{ r.summary.passed }} passed</span>
+    <span class="badge failed">{{ r.summary.failed }} failed</span>
+    <span class="badge error">{{ r.summary.error }} error</span>
+    <span class="badge skipped">{{ r.summary.skipped }} skipped</span>
+    {% if r.summary.cancelled %}<span class="badge cancelled">{{ r.summary.cancelled }} cancelled</span>{% endif %}
+    {% if r.summary.retried %}<span class="muted">{{ r.summary.retried }} step(s) needed a retry</span>{% endif %}
+    <span class="muted">Duration {{ (r.duration_ms / 1000) | round(1) }} s · {{ r.started_at }}</span>
+  </div>
+
+  <div class="grid" style="margin-top:12px">
+    <div class="panel">
+      <strong>Plan</strong>
+      <dl class="kv">
+        <dt>Name</dt><dd>{{ r.plan.name }}</dd>
+        <dt>DSL version</dt><dd>{{ r.plan.dsl_version }}</dd>
+        <dt>SHA-256</dt><dd><code>{{ r.plan.sha256[:16] }}…</code></dd>
+        <dt>Origin</dt><dd>{% if r.plan.origin == "ai_generated" %}<strong>AI-generated</strong>{% else %}Manually authored{% endif %}</dd>
+        {% if r.plan.approval %}<dt>Approved by</dt><dd>{{ r.plan.approval.approved_by }} ({{ r.plan.approval.approved_at }})</dd>{% endif %}
+        {% if r.plan.path %}<dt>File</dt><dd><code>{{ r.plan.path }}</code></dd>{% endif %}
+      </dl>
+    </div>
+    <div class="panel">
+      <strong>Application under test</strong>
+      {% if r.artifact %}
+      <dl class="kv">
+        <dt>Artifact</dt><dd><code>{{ r.artifact.path }}</code></dd>
+        <dt>Identifier</dt><dd>{{ r.artifact.identifier }}</dd>
+        <dt>Version</dt><dd>{{ r.artifact.version_name }} ({{ r.artifact.version_code }})</dd>
+        <dt>SHA-256</dt><dd><code>{{ (r.artifact.sha256 or "n/a")[:16] }}…</code></dd>
+        <dt>Install verified</dt><dd>{{ "yes" if r.artifact.installed_verified else "no" }}</dd>
+      </dl>
+      {% else %}<div class="muted">No app artifact (API run).</div>{% endif %}
+    </div>
+    <div class="panel">
+      <strong>Device and runner</strong>
+      <dl class="kv">
+        {% for k, v in r.device.items() %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}
+        <dt>Runner</dt><dd>{{ r.runner.runner }} {{ r.runner.runner_version or "" }}</dd>
+        <dt>Framework</dt><dd>mtf {{ r.runner.framework_version }}</dd>
+      </dl>
+    </div>
+    <div class="panel">
+      <strong>Environment</strong>
+      <dl class="kv">
+        <dt>Name</dt><dd>{{ r.environment.name }} ({{ r.environment.kind }})</dd>
+        <dt>Backend</dt><dd><code>{{ r.environment.backend_base_url }}</code></dd>
+        <dt>Test support</dt><dd>{{ "enabled" if r.environment.test_support else "disabled" }}</dd>
+        {% for k, v in r.configuration.items() %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}
+      </dl>
+    </div>
+  </div>
+
+  {% if r.warnings %}
+  <h2>Warnings</h2>
+  <div class="panel"><ul>{% for w in r.warnings %}<li class="msg">{{ w }}</li>{% endfor %}</ul></div>
+  {% endif %}
+
+  {% if r.validation_issues %}
+  <h2>Validation</h2>
+  <div class="panel table-wrap"><table>
+    <tr><th>Severity</th><th>Code</th><th>Location</th><th>Message</th></tr>
+    {% for i in r.validation_issues %}
+    <tr><td><span class="badge {{ 'error' if i.severity == 'error' else 'skipped' }}">{{ i.severity }}</span></td>
+        <td><code>{{ i.code }}</code></td><td><code>{{ i.location }}</code></td><td class="msg">{{ i.message }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+
+  <h2>Steps</h2>
+  <div class="panel table-wrap"><table>
+    <tr><th>#</th><th>Section</th><th>Step</th><th>Status</th><th>Time</th><th>Details</th></tr>
+    {% for s in r.steps %}
+    <tr>
+      <td>{{ s.index }}</td>
+      <td class="muted">{{ s.section }}</td>
+      <td><strong>{{ s.kind }}</strong> <code>{{ s.name }}</code>{% if s.target %} → <code>{{ s.target }}</code>{% endif %}
+          {% if s.description %}<div class="muted">{{ s.description }}</div>{% endif %}</td>
+      <td><span class="badge {{ s.status }}">{{ s.status }}</span>
+          {% if s.failure_category %}<div class="muted"><code>{{ s.failure_category }}</code></div>{% endif %}</td>
+      <td class="muted">{{ s.duration_ms | round(0) | int }} ms{% if s.attempts | length > 1 %}<br>{{ s.attempts | length }} attempts{% endif %}</td>
+      <td>
+        {% if s.message %}<div class="msg">{{ s.message }}</div>{% endif %}
+        <details><summary class="muted">parameters, checks, evidence</summary>
+          <pre>{{ s.params | pretty }}</pre>
+          {% if s.expected is not none or s.actual is not none %}<div>expected <code>{{ s.expected }}</code> · actual <code>{{ s.actual }}</code></div>{% endif %}
+          {% if s.checks %}<table>{% for c in s.checks %}
+            <tr><td><span class="badge {{ 'passed' if c.passed else 'failed' }}">{{ 'ok' if c.passed else 'fail' }}</span></td>
+                <td>{{ c.kind }}</td><td class="msg">{{ c.description }}</td><td class="msg"><code>{{ c.actual }}</code></td></tr>
+          {% endfor %}</table>{% endif %}
+          {% if s.attempts | length > 1 %}<div class="muted">Attempts: {% for a in s.attempts %}#{{ a.attempt }} {{ a.status }}{% if a.failure_category %} ({{ a.failure_category }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+          {% if s.api_exchange_ids %}<div class="muted">API exchanges: {% for id in s.api_exchange_ids %}<a href="#api-{{ id }}">#{{ id }}</a> {% endfor %}</div>{% endif %}
+          {% for e in s.evidence %}
+            {% if e.kind == "screenshot" %}<a href="{{ e.path }}"><img class="shot" src="{{ e.path }}" alt="screenshot"></a>
+            {% elif e.path %}<div><a href="{{ e.path }}">{{ e.kind }}</a> {{ e.description }}</div>
+            {% else %}<div class="muted">{{ e.kind }}: {{ e.description }}</div>{% endif %}
+          {% endfor %}
+        </details>
+      </td>
+    </tr>
+    {% endfor %}
+  </table></div>
+
+  {% if r.api_exchanges %}
+  <h2>API exchanges <span class="muted notice">(secrets redacted)</span></h2>
+  <div class="panel">
+    {% for x in r.api_exchanges %}
+    <details id="api-{{ x.id }}"><summary><code>#{{ x.id }} {{ x.operation }}</code> → <strong>{{ x.response.status }}</strong>
+      <span class="muted">{{ x.purpose }}{% if x.test_support %} · test support{% endif %}{% if x.step %} · {{ x.step }}{% endif %} · {{ x.elapsed_ms }} ms</span></summary>
+      <pre>{{ x.request | pretty }}</pre>
+      <pre>{{ x.response | pretty }}</pre>
+    </details>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if r.advisory %}
+  <div class="panel advisory" style="margin-top:28px">
+    <h2>{{ r.advisory.label }}</h2>
+    <div class="muted">{{ r.advisory.provider }} {{ r.advisory.model or "" }} · {{ r.advisory.generated_at }}</div>
+    <p class="msg">{{ r.advisory.summary }}</p>
+    {% if r.advisory.suspected_causes %}<strong>Suspected causes</strong><ul>{% for c in r.advisory.suspected_causes %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}
+    {% if r.advisory.suggested_plan_changes %}<strong>Suggested plan changes (require review)</strong><ul>{% for c in r.advisory.suggested_plan_changes %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endif %}
+
+  <h2>Lifecycle</h2>
+  <div class="panel muted">{% for t in r.lifecycle %}{{ t.state }}{% if t.note %} ({{ t.note }}){% endif %}{% if not loop.last %} → {% endif %}{% endfor %}</div>
+</main>
+</body>
+</html>

@@ -1,0 +1,90 @@
+# Deterministic test data the plans may reference by stable ID.
+#
+# Source: the Mobile Test Playground seed (backend persistence/SeedData.kt; the apps' offline seed is
+# identical). It is restored by POST /api/v1/test/reset (backend) and by a clean app launch.
+#
+# Credentials are NEVER stored here. Each account names the environment variable that holds its
+# password; plans reference it as ${secret:accounts.<ref>.password} and the value is resolved only at
+# execution time, registered with the redactor and never written to reports or AI prompts.
+version: 1
+
+accounts:
+  customer:
+    user_id: user_customer
+    email: test@example.com
+    display_name: Test Customer
+    role: CUSTOMER
+    password_env: MTF_PASSWORD_CUSTOMER
+  qa:
+    user_id: user_qa
+    email: qa@example.com
+    display_name: QA User
+    role: CUSTOMER
+    password_env: MTF_PASSWORD_QA
+    notes: Starts with product_002 in the backend wishlist.
+  admin:
+    user_id: user_admin
+    email: admin@example.com
+    display_name: Admin User
+    role: ADMIN
+    password_env: MTF_PASSWORD_ADMIN
+  locked:
+    user_id: user_locked
+    email: locked@example.com
+    display_name: Locked User
+    role: CUSTOMER
+    locked: true
+    password_env: MTF_PASSWORD_LOCKED
+
+# Non-secret literal inputs used by negative scenarios (deliberately wrong, never a real credential).
+inputs:
+  unknown_email: nobody@example.com
+  malformed_email: not-an-email
+  wrong_password: WrongPassword1!
+  empty: ""
+
+products:
+  product_001: {name: Product 001, category: Books, price_cents: 749, price_display: "7.49", stock: 10}
+  product_002: {name: Product 002, category: Electronics, price_cents: 999, price_display: "9.99", stock: 10}
+  product_003: {name: Product 003, category: Garden, price_cents: 1249, price_display: "12.49", stock: 10}
+  product_004: {name: Product 004, category: Toys, price_cents: 1499, price_display: "14.99", stock: 10}
+  product_005: {name: Product 005, category: Books, price_cents: 1749, price_display: "17.49", stock: 10}
+  product_006: {name: Product 006, category: Electronics, price_cents: 1999, price_display: "19.99", stock: 10}
+  product_007: {name: Product 007, category: Garden, price_cents: 2249, price_display: "22.49", stock: 10}
+  product_008: {name: Product 008, category: Toys, price_cents: 2499, price_display: "24.99", stock: 10}
+  product_009: {name: Product 009, category: Books, price_cents: 2749, price_display: "27.49", stock: 10}
+  product_010: {name: Product 010, category: Electronics, price_cents: 2999, price_display: "29.99", stock: 10}
+  product_011: {name: Product 011, category: Garden, price_cents: 3249, price_display: "32.49", stock: 10}
+  product_012: {name: Product 012, category: Toys, price_cents: 3499, price_display: "34.99", stock: 10}
+  product_013: {name: Product 013, category: Books, price_cents: 3749, price_display: "37.49", stock: 10}
+  product_014: {name: Product 014, category: Electronics, price_cents: 3999, price_display: "39.99", stock: 10}
+  product_015: {name: Product 015, category: Garden, price_cents: 4249, price_display: "42.49", stock: 10}
+  product_016: {name: Product 016, category: Toys, price_cents: 4499, price_display: "44.99", stock: 10}
+  product_017: {name: Product 017, category: Books, price_cents: 4749, price_display: "47.49", stock: 10}
+  product_018: {name: Product 018, category: Electronics, price_cents: 4999, price_display: "49.99", stock: 10}
+  product_019: {name: Product 019, category: Garden, price_cents: 5249, price_display: "52.49", stock: 1}
+  product_020: {name: Product 020, category: Toys, price_cents: 5499, price_display: "54.99", stock: 0}
+
+# A product ID that is guaranteed not to exist (404 scenarios).
+missing_products: [product_999]
+
+categories: [Books, Electronics, Garden, Toys]
+
+deep_links:
+  home: mtp://playground/home
+  cart: mtp://playground/cart
+  profile: mtp://playground/profile
+  admin: mtp://playground/admin
+  test_mode: mtp://playground/test-mode
+  scenario_forms: mtp://playground/scenario/forms
+  scenario_dialogs: mtp://playground/scenario/dialogs
+  scenario_lists: mtp://playground/scenario/lists
+  scenario_gestures: mtp://playground/scenario/gestures
+  product_003: mtp://playground/product/product_003
+  detail_3: mtp://playground/detail/3
+
+# Stable result codes the app writes into result labels (see the app's docs/automation.md).
+result_codes:
+  dialogs: [confirmed, cancelled, information_ok, warning_ok, error_ok, action_share, action_duplicate,
+            action_archive, action_cancelled, bottom_sheet_closed, snackbar_undo, snackbar_dismissed]
+  gestures: [TAP, DOUBLE_TAP, LONG_PRESS, SWIPE_LEFT, SWIPE_RIGHT, SWIPE_UP, SWIPE_DOWN, DRAG_AND_DROP, PINCH, PAN]

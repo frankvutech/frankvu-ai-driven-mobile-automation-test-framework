@@ -1,0 +1,10 @@
+# API tests inside Docker Compose: the backend is the `backend` service on the Compose network.
+name: docker
+kind: ci
+description: Backend reached by its Compose service name.
+backend:
+  base_url: http://backend:8080
+  allowed_hosts: [backend]
+  test_support: true
+  verify_tls: false
+private_hosts: [backend]

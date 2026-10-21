@@ -1,0 +1,39 @@
+version: 1
+name: forms_validation
+title: Empty and invalid form submission shows field errors
+tags: [forms, validation, negative]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: open_scenario
+    with: {scenario: forms}
+  - interaction: scroll_to
+    target: form_submit
+    with: {max_swipes: 15}
+  - interaction: tap
+    target: form_submit
+  - assert: {question: is_visible, with: {target: form_success}, expect: {equals: false}}
+  - interaction: scroll_to
+    target: form_full_name_error
+    with: {direction: up, max_swipes: 15}
+  - assert: {question: is_visible, with: {target: form_full_name_error}, expect: {equals: true}, timeout_ms: 3000}
+  - interaction: type_text
+    target: form_email
+    with: {text: "${inputs.malformed_email}"}
+  - interaction: dismiss_keyboard
+  - interaction: scroll_to
+    target: form_submit
+    with: {max_swipes: 15}
+  - interaction: tap
+    target: form_submit
+  - interaction: scroll_to
+    target: form_email_error
+    with: {direction: up, max_swipes: 15}
+  - assert: {question: is_visible, with: {target: form_email_error}, expect: {equals: true}, timeout_ms: 3000}

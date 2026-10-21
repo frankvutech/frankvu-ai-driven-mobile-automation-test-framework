@@ -1,0 +1,30 @@
+version: 1
+name: lists_and_scrolling
+title: Long lists scroll to items below the fold; scroll-to-bottom reaches the end
+tags: [lists, scrolling]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: open_scenario
+    with: {scenario: lists}
+  - assert: {question: is_visible, with: {target: list_item_030}, expect: {equals: false}, timeout_ms: 3000}
+  - interaction: scroll_to
+    target: list_item_030
+    with: {max_swipes: 20}
+  - assert: {question: is_visible, with: {target: list_item_030}, expect: {equals: true}}
+  - task: go_back
+  - task: open_scenario
+    with: {scenario: scrolling}
+  - interaction: tap
+    target: scroll_to_bottom
+  - wait: {target: scroll_bottom_marker, timeout_ms: 5000}
+  - interaction: tap
+    target: scroll_to_top
+  - wait: {target: scroll_bottom_marker, state: gone, timeout_ms: 5000}

@@ -1,0 +1,24 @@
+version: 1
+name: home_search
+title: Dashboard search filters scenarios and shows an empty state
+description: >
+  The apps have no product search in the UI; the dashboard search filters the scenario list.
+  Product search is covered by plans/api/products.yaml.
+tags: [search, lists]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: search_scenarios
+    with: {query: dialog}
+  - assert: {question: scenario_is_listed, with: {scenario: dialogs}, expect: {equals: true}, timeout_ms: 3000}
+  - assert: {question: scenario_is_listed, with: {scenario: forms}, expect: {equals: false}, timeout_ms: 3000}
+  - task: search_scenarios
+    with: {query: zzz}
+  - assert: {question: empty_search_result_shown, expect: {equals: true}, timeout_ms: 3000}

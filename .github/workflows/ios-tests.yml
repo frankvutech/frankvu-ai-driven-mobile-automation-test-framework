@@ -1,0 +1,89 @@
+# iOS UI tests against a PREBUILT simulator .app, with `xcodebuild test-without-building` of the
+# framework's XCUITest runner. The application target is never built here.
+name: iOS tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifacts_repository:
+        description: Repository whose workflow run published the .app and backend artifacts
+        default: frankvutech/frankvu-mobile-test-lab
+      artifacts_run_id:
+        description: Run ID that published them
+        required: true
+      app_artifact:
+        description: Artifact containing MobileTestPlayground.app (simulator build)
+        default: ios-test-results
+      backend_artifact:
+        description: Artifact containing backend.jar
+        default: mtp-backend-jar
+      simulator:
+        description: Simulator device name
+        default: iPhone 16
+  workflow_call:
+    inputs:
+      artifacts_repository: {type: string, default: frankvutech/frankvu-mobile-test-lab}
+      artifacts_run_id: {type: string, required: true}
+      app_artifact: {type: string, default: ios-test-results}
+      backend_artifact: {type: string, default: mtp-backend-jar}
+      simulator: {type: string, default: iPhone 16}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 75
+    env:
+      MTF_PASSWORD_CUSTOMER: ${{ secrets.MTF_PASSWORD_CUSTOMER }}
+      MTF_PASSWORD_QA: ${{ secrets.MTF_PASSWORD_QA }}
+      MTF_PASSWORD_ADMIN: ${{ secrets.MTF_PASSWORD_ADMIN }}
+      MTF_PASSWORD_LOCKED: ${{ secrets.MTF_PASSWORD_LOCKED }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the prebuilt app
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.app_artifact }}
+          repository: ${{ inputs.artifacts_repository }}
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ secrets.ARTIFACTS_READ_TOKEN || github.token }}
+          path: artifacts/ios
+      - name: Download the prebuilt backend
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.backend_artifact }}
+          repository: ${{ inputs.artifacts_repository }}
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ secrets.ARTIFACTS_READ_TOKEN || github.token }}
+          path: artifacts/backend
+      - name: Locate the .app
+        run: |
+          APP=$(find artifacts/ios -type d -name 'MobileTestPlayground.app' | head -n 1)
+          test -n "$APP" || { echo "MobileTestPlayground.app not found in the artifact"; exit 1; }
+          echo "IOS_APP=$APP" >> "$GITHUB_ENV"
+      - name: Build the framework XCUITest runner (build-for-testing, not the app)
+        run: |
+          brew install xcodegen
+          make ios-runner
+      - name: Start the backend
+        run: |
+          DATABASE_URL='jdbc:h2:mem:mtf;DB_CLOSE_DELAY=-1' TEST_SUPPORT_ENABLED=true PORT=8080 \
+            nohup java -jar artifacts/backend/backend.jar > backend.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS localhost:8080/health && exit 0; sleep 2; done
+          cat backend.log; exit 1
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - name: Run plans on the simulator (test-without-building)
+        run: uv run mtf run plans/shared plans/ios --platform ios --env ci --app "$IOS_APP" --simulator "${{ inputs.simulator }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-test-reports
+          path: |
+            reports
+            backend.log

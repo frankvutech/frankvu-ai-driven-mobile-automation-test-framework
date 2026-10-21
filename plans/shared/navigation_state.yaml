@@ -1,0 +1,29 @@
+version: 1
+name: navigation_state
+title: Navigation stack, back navigation and state across background/foreground
+tags: [navigation, lifecycle]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: open_scenario
+    with: {scenario: navigation}
+  - assert: {question: text_of, with: {target: nav_counter_value}, expect: {matches: ".*"}, save: counter_before, timeout_ms: 3000}
+  - interaction: tap
+    target: nav_counter_increment
+  - assert: {question: text_of, with: {target: nav_counter_value}, expect: {not_equals: "${vars.counter_before}"}, save: counter_after, timeout_ms: 3000}
+  - interaction: background_app
+    with: {duration_ms: 1500}
+  - assert: {question: text_of, with: {target: nav_counter_value}, expect: {equals: "${vars.counter_after}"}, timeout_ms: 5000}
+  - interaction: tap
+    target: nav_push_detail
+  - wait: {target: nav_detail_screen, timeout_ms: 5000}
+  - interaction: back
+  - wait: {target: navigation_screen, timeout_ms: 5000}
+  - assert: {question: is_visible, with: {target: nav_detail_screen}, expect: {equals: false}}

@@ -1,0 +1,1656 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mtf.local/schemas/test-plan.v1.schema.json",
+  "title": "TestPlan",
+  "$defs": {
+    "ActorSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "account": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Account reference from contracts/test-data.yaml.",
+          "title": "Account"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "title": "ActorSpec",
+      "type": "object"
+    },
+    "AiProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "request": {
+          "description": "The natural-language request (secrets are never included).",
+          "title": "Request",
+          "type": "string"
+        },
+        "request_sha256": {
+          "title": "Request Sha256",
+          "type": "string"
+        },
+        "generated_at": {
+          "title": "Generated At",
+          "type": "string"
+        },
+        "explanation": {
+          "default": "",
+          "title": "Explanation",
+          "type": "string"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "provider",
+        "request",
+        "request_sha256",
+        "generated_at"
+      ],
+      "title": "AiProvenance",
+      "type": "object"
+    },
+    "ApiExpect": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Status"
+        },
+        "headers": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Matcher"
+          },
+          "title": "Headers",
+          "type": "object"
+        },
+        "schema": {
+          "default": true,
+          "description": "Validate the body against the contract.",
+          "title": "Schema",
+          "type": "boolean"
+        },
+        "json": {
+          "items": {
+            "$ref": "#/$defs/JsonAssertion"
+          },
+          "title": "Json",
+          "type": "array"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "ApiExpect",
+      "type": "object"
+    },
+    "ApiSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "$ref": "#/$defs/HttpMethod"
+        },
+        "path": {
+          "description": "Path template exactly as in the OpenAPI contract.",
+          "pattern": "^/[A-Za-z0-9_\\-/{}.]*$",
+          "title": "Path",
+          "type": "string"
+        },
+        "path_params": {
+          "additionalProperties": true,
+          "title": "Path Params",
+          "type": "object"
+        },
+        "query": {
+          "additionalProperties": true,
+          "title": "Query",
+          "type": "object"
+        },
+        "body": {
+          "default": null,
+          "title": "Body"
+        },
+        "raw_body": {
+          "anyOf": [
+            {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A literal (possibly malformed) body.",
+          "title": "Raw Body"
+        },
+        "as": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Actor whose token is sent.",
+          "title": "As"
+        },
+        "token": {
+          "default": "valid",
+          "description": "`invalid` sends a deliberately malformed token (negative tests).",
+          "enum": [
+            "valid",
+            "none",
+            "invalid"
+          ],
+          "title": "Token",
+          "type": "string"
+        },
+        "expect": {
+          "$ref": "#/$defs/ApiExpect"
+        },
+        "save": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Run variables taken from the response body.",
+          "title": "Save",
+          "type": "object"
+        }
+      },
+      "required": [
+        "method",
+        "path",
+        "expect"
+      ],
+      "title": "ApiSpec",
+      "type": "object"
+    },
+    "ApiStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional stable step ID for reports.",
+          "title": "Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 120000,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Ms"
+        },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "platforms": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Platform"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run this step only on these platforms (default: every plan platform).",
+          "title": "Platforms"
+        },
+        "api": {
+          "$ref": "#/$defs/ApiSpec"
+        }
+      },
+      "required": [
+        "api"
+      ],
+      "title": "ApiStep",
+      "type": "object"
+    },
+    "Approval": {
+      "additionalProperties": false,
+      "properties": {
+        "approved_by": {
+          "minLength": 1,
+          "title": "Approved By",
+          "type": "string"
+        },
+        "approved_at": {
+          "title": "Approved At",
+          "type": "string"
+        },
+        "plan_sha256": {
+          "description": "Canonical hash of the plan content at approval time.",
+          "title": "Plan Sha256",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "approved_by",
+        "approved_at",
+        "plan_sha256"
+      ],
+      "title": "Approval",
+      "type": "object"
+    },
+    "AssertSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "question": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Question"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        },
+        "property": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ElementProperty"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "actor": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor"
+        },
+        "with": {
+          "additionalProperties": true,
+          "title": "With",
+          "type": "object"
+        },
+        "expect": {
+          "$ref": "#/$defs/Matcher"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 120000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Keep re-asking until the matcher holds or the timeout expires (UI questions only).",
+          "title": "Timeout Ms"
+        },
+        "save": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Store the answer as ${vars.<name>} for later steps (UI/API correlation).",
+          "title": "Save"
+        }
+      },
+      "required": [
+        "expect"
+      ],
+      "title": "AssertSpec",
+      "type": "object"
+    },
+    "AssertStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional stable step ID for reports.",
+          "title": "Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 120000,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Ms"
+        },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "platforms": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Platform"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run this step only on these platforms (default: every plan platform).",
+          "title": "Platforms"
+        },
+        "assert": {
+          "$ref": "#/$defs/AssertSpec"
+        }
+      },
+      "required": [
+        "assert"
+      ],
+      "title": "AssertStep",
+      "type": "object"
+    },
+    "CaptureSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "screenshot": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Screenshot"
+        },
+        "hierarchy": {
+          "default": false,
+          "title": "Hierarchy",
+          "type": "boolean"
+        }
+      },
+      "title": "CaptureSpec",
+      "type": "object"
+    },
+    "CaptureStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional stable step ID for reports.",
+          "title": "Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 120000,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Ms"
+        },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "platforms": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Platform"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run this step only on these platforms (default: every plan platform).",
+          "title": "Platforms"
+        },
+        "capture": {
+          "$ref": "#/$defs/CaptureSpec"
+        }
+      },
+      "required": [
+        "capture"
+      ],
+      "title": "CaptureStep",
+      "type": "object"
+    },
+    "Defaults": {
+      "additionalProperties": false,
+      "properties": {
+        "timeout_ms": {
+          "default": 10000,
+          "maximum": 120000,
+          "minimum": 100,
+          "title": "Timeout Ms",
+          "type": "integer"
+        },
+        "actor": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor"
+        }
+      },
+      "title": "Defaults",
+      "type": "object"
+    },
+    "ElementProperty": {
+      "enum": [
+        "visible",
+        "exists",
+        "text",
+        "enabled",
+        "selected",
+        "value"
+      ],
+      "title": "ElementProperty",
+      "type": "string"
+    },
+    "ElementState": {
+      "enum": [
+        "visible",
+        "gone",
+        "enabled",
+        "disabled",
+        "selected",
+        "not_selected"
+      ],
+      "title": "ElementState",
+      "type": "string"
+    },
+    "EvidencePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "screenshots": {
+          "$ref": "#/$defs/ScreenshotPolicy",
+          "default": "on_failure"
+        },
+        "hierarchy": {
+          "default": "on_failure",
+          "enum": [
+            "never",
+            "on_failure"
+          ],
+          "title": "Hierarchy",
+          "type": "string"
+        },
+        "device_logs": {
+          "default": "on_failure",
+          "enum": [
+            "never",
+            "on_failure",
+            "always"
+          ],
+          "title": "Device Logs",
+          "type": "string"
+        },
+        "api_exchanges": {
+          "default": "always",
+          "enum": [
+            "never",
+            "always"
+          ],
+          "title": "Api Exchanges",
+          "type": "string"
+        }
+      },
+      "title": "EvidencePolicy",
+      "type": "object"
+    },
+    "FailureCategory": {
+      "description": "Why a step or run did not pass. Reports group failures by these values.",
+      "enum": [
+        "assertion_failed",
+        "element_not_found",
+        "selector_contract_violation",
+        "timeout",
+        "api_assertion_failed",
+        "api_contract_violation",
+        "app_crash",
+        "artifact_mismatch",
+        "runner_error",
+        "infrastructure_error",
+        "configuration_error",
+        "plan_validation_error",
+        "policy_violation",
+        "cancelled"
+      ],
+      "title": "FailureCategory",
+      "type": "string"
+    },
+    "FixtureStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional stable step ID for reports.",
+          "title": "Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 120000,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Ms"
+        },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "platforms": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Platform"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run this step only on these platforms (default: every plan platform).",
+          "title": "Platforms"
+        },
+        "fixture": {
+          "pattern": "^[a-z][a-z0-9_]{1,79}$",
+          "title": "Fixture",
+          "type": "string"
+        },
+        "actor": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor"
+        },
+        "with": {
+          "additionalProperties": true,
+          "title": "With",
+          "type": "object"
+        }
+      },
+      "required": [
+        "fixture"
+      ],
+      "title": "FixtureStep",
+      "type": "object"
+    },
+    "HttpMethod": {
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ],
+      "title": "HttpMethod",
+      "type": "string"
+    },
+    "InteractionName": {
+      "enum": [
+        "tap",
+        "double_tap",
+        "long_press",
+        "type_text",
+        "clear_text",
+        "scroll_to",
+        "swipe",
+        "drag_to",
+        "back",
+        "dismiss_keyboard",
+        "launch_app",
+        "relaunch_app",
+        "terminate_app",
+        "background_app",
+        "open_deep_link"
+      ],
+      "title": "InteractionName",
+      "type": "string"
+    },
+    "InteractionStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional stable step ID for reports.",
+          "title": "Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 120000,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Ms"
+        },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "platforms": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Platform"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run this step only on these platforms (default: every plan platform).",
+          "title": "Platforms"
+        },
+        "interaction": {
+          "$ref": "#/$defs/InteractionName"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        },
+        "with": {
+          "additionalProperties": true,
+          "title": "With",
+          "type": "object"
+        }
+      },
+      "required": [
+        "interaction"
+      ],
+      "title": "InteractionStep",
+      "type": "object"
+    },
+    "JsonAssertion": {
+      "additionalProperties": false,
+      "properties": {
+        "equals": {
+          "default": null,
+          "title": "Equals"
+        },
+        "not_equals": {
+          "default": null,
+          "title": "Not Equals"
+        },
+        "contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contains"
+        },
+        "not_contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Not Contains"
+        },
+        "matches": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A regular expression (full match).",
+          "title": "Matches"
+        },
+        "one_of": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "One Of"
+        },
+        "greater_than": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Greater Than"
+        },
+        "less_than": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Less Than"
+        },
+        "path": {
+          "description": "Dotted JSON path, e.g. `items[0].product.id`, `error.code`, `$` for the body.",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "JsonAssertion",
+      "type": "object"
+    },
+    "Matcher": {
+      "additionalProperties": false,
+      "description": "Exactly one comparison. `equals` may compare with null; the others need a value.",
+      "properties": {
+        "equals": {
+          "default": null,
+          "title": "Equals"
+        },
+        "not_equals": {
+          "default": null,
+          "title": "Not Equals"
+        },
+        "contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contains"
+        },
+        "not_contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Not Contains"
+        },
+        "matches": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A regular expression (full match).",
+          "title": "Matches"
+        },
+        "one_of": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "One Of"
+        },
+        "greater_than": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Greater Than"
+        },
+        "less_than": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Less Than"
+        }
+      },
+      "title": "Matcher",
+      "type": "object"
+    },
+    "PlanMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/PlanOrigin",
+          "default": "manual"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "ai": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AiProvenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Approval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "PlanMetadata",
+      "type": "object"
+    },
+    "PlanOrigin": {
+      "enum": [
+        "manual",
+        "ai_generated"
+      ],
+      "title": "PlanOrigin",
+      "type": "string"
+    },
+    "Platform": {
+      "enum": [
+        "android",
+        "ios",
+        "api"
+      ],
+      "title": "Platform",
+      "type": "string"
+    },
+    "RetryPolicy": {
+      "additionalProperties": false,
+      "description": "Retries are opt-in, bounded, and every attempt is recorded in the report.",
+      "properties": {
+        "max_attempts": {
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Max Attempts",
+          "type": "integer"
+        },
+        "delay_ms": {
+          "default": 500,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Delay Ms",
+          "type": "integer"
+        },
+        "on_failure": {
+          "description": "Failure categories that may be retried. (`on` is avoided: YAML 1.1 reads it as true.)",
+          "items": {
+            "$ref": "#/$defs/FailureCategory"
+          },
+          "title": "On Failure",
+          "type": "array"
+        }
+      },
+      "required": [
+        "max_attempts"
+      ],
+      "title": "RetryPolicy",
+      "type": "object"
+    },
+    "ScreenshotPolicy": {
+      "enum": [
+        "never",
+        "on_failure",
+        "every_step"
+      ],
+      "title": "ScreenshotPolicy",
+      "type": "string"
+    },
+    "TaskStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional stable step ID for reports.",
+          "title": "Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 120000,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Ms"
+        },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "platforms": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Platform"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run this step only on these platforms (default: every plan platform).",
+          "title": "Platforms"
+        },
+        "task": {
+          "pattern": "^[a-z][a-z0-9_]{1,79}$",
+          "title": "Task",
+          "type": "string"
+        },
+        "actor": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor"
+        },
+        "with": {
+          "additionalProperties": true,
+          "title": "With",
+          "type": "object"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "title": "TaskStep",
+      "type": "object"
+    },
+    "WaitSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/ElementState",
+          "default": "visible"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Matcher"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Additionally wait until the element text matches."
+        },
+        "timeout_ms": {
+          "maximum": 120000,
+          "minimum": 100,
+          "title": "Timeout Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "target",
+        "timeout_ms"
+      ],
+      "title": "WaitSpec",
+      "type": "object"
+    },
+    "WaitStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional stable step ID for reports.",
+          "title": "Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "maximum": 120000,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Ms"
+        },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "platforms": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Platform"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run this step only on these platforms (default: every plan platform).",
+          "title": "Platforms"
+        },
+        "wait": {
+          "$ref": "#/$defs/WaitSpec"
+        }
+      },
+      "required": [
+        "wait"
+      ],
+      "title": "WaitStep",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1,
+      "description": "DSL major version. See docs/test-plan-dsl.md for compatibility rules.",
+      "title": "Version",
+      "type": "integer"
+    },
+    "name": {
+      "pattern": "^[a-z][a-z0-9_]{1,79}$",
+      "title": "Name",
+      "type": "string"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Title"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "platforms": {
+      "items": {
+        "$ref": "#/$defs/Platform"
+      },
+      "minItems": 1,
+      "title": "Platforms",
+      "type": "array"
+    },
+    "metadata": {
+      "$ref": "#/$defs/PlanMetadata"
+    },
+    "actors": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ActorSpec"
+      },
+      "title": "Actors",
+      "type": "object"
+    },
+    "defaults": {
+      "$ref": "#/$defs/Defaults"
+    },
+    "evidence": {
+      "$ref": "#/$defs/EvidencePolicy"
+    },
+    "preconditions": {
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/TaskStep"
+          },
+          {
+            "$ref": "#/$defs/InteractionStep"
+          },
+          {
+            "$ref": "#/$defs/WaitStep"
+          },
+          {
+            "$ref": "#/$defs/AssertStep"
+          },
+          {
+            "$ref": "#/$defs/ApiStep"
+          },
+          {
+            "$ref": "#/$defs/FixtureStep"
+          },
+          {
+            "$ref": "#/$defs/CaptureStep"
+          }
+        ]
+      },
+      "maxItems": 200,
+      "title": "Preconditions",
+      "type": "array"
+    },
+    "steps": {
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/TaskStep"
+          },
+          {
+            "$ref": "#/$defs/InteractionStep"
+          },
+          {
+            "$ref": "#/$defs/WaitStep"
+          },
+          {
+            "$ref": "#/$defs/AssertStep"
+          },
+          {
+            "$ref": "#/$defs/ApiStep"
+          },
+          {
+            "$ref": "#/$defs/FixtureStep"
+          },
+          {
+            "$ref": "#/$defs/CaptureStep"
+          }
+        ]
+      },
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    },
+    "cleanup": {
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/TaskStep"
+          },
+          {
+            "$ref": "#/$defs/InteractionStep"
+          },
+          {
+            "$ref": "#/$defs/WaitStep"
+          },
+          {
+            "$ref": "#/$defs/AssertStep"
+          },
+          {
+            "$ref": "#/$defs/ApiStep"
+          },
+          {
+            "$ref": "#/$defs/FixtureStep"
+          },
+          {
+            "$ref": "#/$defs/CaptureStep"
+          }
+        ]
+      },
+      "maxItems": 200,
+      "title": "Cleanup",
+      "type": "array"
+    }
+  },
+  "required": [
+    "version",
+    "name",
+    "platforms",
+    "steps"
+  ],
+  "type": "object"
+}

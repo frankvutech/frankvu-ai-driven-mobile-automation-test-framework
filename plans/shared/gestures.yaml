@@ -1,0 +1,27 @@
+version: 1
+name: gestures
+title: Double tap, long press and swipe are recognised
+tags: [gestures]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: open_scenario
+    with: {scenario: gestures}
+  - interaction: double_tap
+    target: gesture_double_tap_target
+  - assert: {question: gesture_result, expect: {contains: DOUBLE_TAP}, timeout_ms: 3000}
+  - interaction: long_press
+    target: gesture_long_press_target
+    with: {duration_ms: 1500}
+  - assert: {question: gesture_result, expect: {contains: LONG_PRESS}, timeout_ms: 3000}
+  - interaction: swipe
+    target: gesture_swipe_area
+    with: {direction: left}
+  - assert: {question: gesture_result, expect: {contains: SWIPE_LEFT}, timeout_ms: 3000}

@@ -1,0 +1,101 @@
+# OPTIONAL UPSTREAM PRODUCER — not part of the framework's test jobs.
+# Builds the application's artifacts (APK, simulator .app, backend JAR) from an app checkout with the
+# app's own build, unmodified, and publishes them. The test workflows only DOWNLOAD these artifacts.
+# Prefer the app repository's own pipeline as the producer; this exists for apps whose CI does not
+# publish every artifact (e.g. the backend JAR).
+name: Upstream artifacts (optional)
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_repository:
+        description: Application repository
+        default: frankvutech/frankvu-mobile-test-lab
+      app_ref:
+        description: Commit, tag or branch to build
+        default: main
+      run_tests:
+        description: Then run the framework's test workflows against these artifacts
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  android-and-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ inputs.app_ref }}
+          token: ${{ secrets.ARTIFACTS_READ_TOKEN || github.token }}
+          path: app
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+        with:
+          # The default list includes the retired 'tools' package, which sdkmanager can no longer find.
+          packages: platform-tools
+      - name: Build the APK (app's own build)
+        run: cd app/android && ./gradlew --no-daemon :app:assembleDebug
+      - name: Build the backend JAR (app's own build)
+        run: cd app/backend && ./gradlew --no-daemon buildFatJar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mtp-backend-jar
+          path: app/backend/build/libs/backend.jar
+
+  ios-app:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ inputs.app_ref }}
+          token: ${{ secrets.ARTIFACTS_READ_TOKEN || github.token }}
+          path: app
+      - uses: actions/checkout@v4
+        with:
+          path: framework
+      - name: Build the simulator .app (app's own project)
+        run: framework/tools/upstream/build-ios-app-artifact.sh "$PWD/app" "$PWD/out"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: out/MobileTestPlayground.app
+
+  api:
+    if: ${{ inputs.run_tests }}
+    needs: android-and-backend
+    uses: ./.github/workflows/api-tests.yml
+    with:
+      artifacts_repository: ${{ github.repository }}
+      artifacts_run_id: ${{ github.run_id }}
+    secrets: inherit
+
+  android:
+    if: ${{ inputs.run_tests }}
+    needs: android-and-backend
+    uses: ./.github/workflows/android-tests.yml
+    with:
+      artifacts_repository: ${{ github.repository }}
+      artifacts_run_id: ${{ github.run_id }}
+    secrets: inherit
+
+  ios:
+    if: ${{ inputs.run_tests }}
+    needs: [android-and-backend, ios-app]
+    uses: ./.github/workflows/ios-tests.yml
+    with:
+      artifacts_repository: ${{ github.repository }}
+      artifacts_run_id: ${{ github.run_id }}
+    secrets: inherit

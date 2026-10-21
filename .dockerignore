@@ -1,0 +1,12 @@
+.git
+.venv
+.env
+artifacts
+reports
+**/__pycache__
+.mypy_cache
+.ruff_cache
+.pytest_cache
+framework/android-runner
+framework/ios-runner
+framework/tests

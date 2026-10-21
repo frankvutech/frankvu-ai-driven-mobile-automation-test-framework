@@ -1,0 +1,25 @@
+version: 1
+name: remember_me_restart
+title: With Remember Me, the session survives a real process restart
+description: >
+  The app team covers this only with unit tests because in-process instrumentation cannot kill the
+  app. The black-box runners terminate and relaunch the real process without clearing data.
+tags: [auth, lifecycle]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+steps:
+  - interaction: tap
+    target: login_remember_me
+  - task: login
+  - interaction: relaunch_app
+    with: {clean_state: false}
+  - assert: {question: current_screen, expect: {equals: home_screen}, timeout_ms: 15000}
+  - interaction: relaunch_app
+    with: {clean_state: true}
+  - assert: {question: current_screen, expect: {equals: login_screen}, timeout_ms: 15000}

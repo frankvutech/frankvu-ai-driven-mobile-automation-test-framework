@@ -1,0 +1,28 @@
+# API automation in containers: the app's prebuilt backend JAR + the MTF image.
+#   BACKEND_ARTIFACT_DIR=artifacts/backend docker compose run --rm mtf-api
+# Test credentials are passed through from the environment (never baked into images).
+services:
+  backend:
+    build:
+      context: docker
+      dockerfile: backend.Dockerfile
+      additional_contexts:
+        backend_artifact: ${BACKEND_ARTIFACT_DIR:-artifacts/backend}
+    image: mtf-playground-backend:local
+    environment:
+      TEST_SUPPORT_ENABLED: "true"
+
+  mtf-api:
+    build: .
+    image: mtf:local
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      MTF_PASSWORD_CUSTOMER: ${MTF_PASSWORD_CUSTOMER:?set MTF_PASSWORD_CUSTOMER}
+      MTF_PASSWORD_QA: ${MTF_PASSWORD_QA:?set MTF_PASSWORD_QA}
+      MTF_PASSWORD_ADMIN: ${MTF_PASSWORD_ADMIN:?set MTF_PASSWORD_ADMIN}
+      MTF_PASSWORD_LOCKED: ${MTF_PASSWORD_LOCKED:?set MTF_PASSWORD_LOCKED}
+    volumes:
+      - ./reports:/work/reports
+    command: ["run", "plans/api", "--platform", "api", "--env", "docker"]

@@ -1,0 +1,16 @@
+# Template for a shared, non-production test environment. Copy to staging.yaml and adjust.
+# Running against it requires an explicit opt-in: --allow-remote-env or MTF_ALLOW_REMOTE_ENV=1.
+# Test support (data reset) is OFF: shared environments must not be wiped by test runs.
+name: staging
+kind: staging
+description: Shared test backend (example values).
+backend:
+  base_url: https://mtp-staging.example.com
+  allowed_hosts: [mtp-staging.example.com]
+  test_support: false
+  verify_tls: true
+android:
+  backend_url: https://mtp-staging.example.com/
+ios:
+  backend_url: https://mtp-staging.example.com
+  launch_arguments: ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]

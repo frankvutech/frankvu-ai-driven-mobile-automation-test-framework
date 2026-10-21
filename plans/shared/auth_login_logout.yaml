@@ -1,0 +1,21 @@
+version: 1
+name: auth_login_logout
+title: A customer signs in, sees their profile, and signs out
+tags: [auth, smoke]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+steps:
+  - assert: {question: current_screen, expect: {equals: login_screen}, timeout_ms: 10000}
+  - task: login
+  - task: open_tab
+    with: {tab: profile}
+  - assert: {question: profile_email, expect: {equals: "${accounts.customer.email}"}, timeout_ms: 5000}
+  - assert: {question: profile_role, expect: {equals: CUSTOMER}}
+  - task: logout
+  - assert: {question: current_screen, expect: {equals: login_screen}, timeout_ms: 5000}
