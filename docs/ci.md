@@ -43,6 +43,10 @@ Production environments are refused by the framework itself, not only by convent
 Every consumer job uploads `reports/` (per-run `result.json`, `report.html`, `events.jsonl`,
 screenshots, hierarchies, logs, the iOS `.xcresult`) and the backend log, also when tests fail.
 `mtf run` exits non-zero when any plan is not `passed`, so the job fails visibly.
+The consumer jobs also write `reports/allure-results` and, even after failures, generate
+`reports/allure-report` with `make allure-report` (Allure 2 CLI via `npx`, Java from the runner
+image); both are part of the uploaded `reports/`. `executor.json` links the report to the workflow
+run. See [Allure](allure.md).
 
 ## Status
 

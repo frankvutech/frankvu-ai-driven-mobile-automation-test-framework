@@ -162,6 +162,7 @@ class IosRunConfig(_Model):
 class RunConfig(_Model):
     environment: str = "local"
     reports_dir: Path = Path("reports")
+    allure_dir: Path | None = None  # also write Allure results here when set
     android: AndroidRunConfig | None = None
     ios: IosRunConfig | None = None
     extra: dict[str, Any] = Field(default_factory=dict)

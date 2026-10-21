@@ -302,7 +302,8 @@ def test_runner_logs_with_typed_secrets_are_redacted(contracts, catalog, environ
     logs = list(run_dir.rglob("*-runner.log"))
     assert logs
     content = logs[0].read_text()
-    assert PASSWORDS["MTF_PASSWORD_CUSTOMER"] not in content
+    # Including passwords this plan never used: a reused session's log can hold an earlier plan's input.
+    assert not any(password in content for password in PASSWORDS.values())
     assert "«redacted»" in content
 
 

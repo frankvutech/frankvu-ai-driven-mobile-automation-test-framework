@@ -71,6 +71,8 @@ class ArtifactInfo(_Model):
 class PlanInfo(_Model):
     name: str
     title: str | None = None
+    description: str | None = None
+    tags: list[str] = Field(default_factory=list)
     dsl_version: int
     sha256: str
     path: str | None = None

@@ -3,6 +3,7 @@
 # CLI flags (--apk, --app, --device, --simulator, ...) override these values.
 environment: local          # config/environments/<name>.yaml
 reports_dir: reports
+allure_dir: reports/allure-results   # Allure results (view with: make allure-serve); remove to skip
 
 android:
   apk: artifacts/android/app-debug.apk         # the application, installed unchanged

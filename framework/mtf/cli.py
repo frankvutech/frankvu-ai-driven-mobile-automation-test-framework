@@ -185,6 +185,14 @@ def _expand(paths: tuple[Path, ...]) -> list[Path]:
 @click.option("--simulator", help="iOS simulator name or UDID.")
 @click.option("--ios-version", help="iOS runtime version, e.g. 26.5.")
 @click.option("--reports", "reports_dir", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--alluredir",
+    "allure_dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="Also write Allure results here (default: allure_dir in the run config; none if unset).",
+)
+@click.option("--clean-alluredir", is_flag=True, help="Empty the Allure results directory before the first plan.")
 @click.option("--allow-remote-env", is_flag=True, help="Confirm a non-local (never production) environment.")
 @click.option("--max-step-seconds", default=300.0, show_default=True, help="Watchdog for a single step.")
 @click.option(
@@ -209,6 +217,8 @@ def run(
     simulator: str | None,
     ios_version: str | None,
     reports_dir: Path | None,
+    allure_dir: Path | None,
+    clean_alluredir: bool,
     allow_remote_env: bool,
     max_step_seconds: float,
     fresh_session_per_plan: bool,
@@ -240,6 +250,7 @@ def run(
     reports = reports_dir or config.reports_dir
     if not reports.is_absolute():
         reports = ctx.root / reports
+    allure = _prepare_allure(allure_dir or config.allure_dir, ctx.root, clean=clean_alluredir)
     catalog = build_catalog()
     orchestrator = Orchestrator(ctx.contracts, catalog)
     cancellation = CancellationToken()
@@ -277,6 +288,8 @@ def run(
             )
         )
         run_dir = reports / "runs" / result.run_id
+        if allure is not None:
+            _export_allure(run_dir, allure)
         results.append(
             {
                 "plan": plan.name,
@@ -290,14 +303,43 @@ def run(
     if session is not None and not getattr(session, "closed", True):
         session.close()
     _write_summary(reports, target, results)
+    _print_results(results, allure)
     bad = [r for r in results if r["status"] != RunStatus.PASSED.value]
+    sys.exit(EXIT_FAILED if bad or not results else EXIT_OK)
+
+
+def _print_results(results: list[dict[str, Any]], allure: Path | None) -> None:
     click.echo("")
     for r in results:
         colour = "green" if r["status"] == "passed" else "red"
         click.secho(f"{r['status']:>9}  {r['plan']}", fg=colour)
         if r.get("run_dir"):
             click.echo(f"           {r['run_dir']}/report.html")
-    sys.exit(EXIT_FAILED if bad or not results else EXIT_OK)
+    if allure is not None:
+        click.echo(f"Allure results: {allure}")
+
+
+def _prepare_allure(allure: Path | None, root: Path, *, clean: bool) -> Path | None:
+    if allure is None:
+        return None
+    from mtf.reporting.allure import prepare_results_dir, write_executor
+
+    allure = allure if allure.is_absolute() else root / allure
+    try:
+        prepare_results_dir(allure, clean=clean)
+    except MtfError as exc:
+        _fail(exc.message, EXIT_USAGE)
+    write_executor(allure, os.environ)
+    return allure
+
+
+def _export_allure(run_dir: Path, allure: Path) -> None:
+    from mtf.reporting.allure import export_run
+
+    try:
+        export_run(run_dir, allure)
+    except (MtfError, OSError) as exc:  # the run result stands; only the extra report is missing
+        click.secho(f"  ! Allure export failed for {run_dir.name}: {exc}", fg="yellow")
 
 
 def _merge_cli(
@@ -564,7 +606,7 @@ def contracts_check_openapi(ctx: Ctx, base_url: str) -> None:
 # --- reports ----------------------------------------------------------------------------------------
 @main.group()
 def report() -> None:
-    """Re-render reports or add an advisory AI analysis."""
+    """Re-render reports, export them to Allure, or add an advisory AI analysis."""
 
 
 @report.command("render")
@@ -573,6 +615,33 @@ def report_render(run_dir: Path) -> None:
     from mtf.reporting.writer import rerender
 
     click.echo(rerender(run_dir))
+
+
+@report.command("allure")
+@click.argument("run_dirs", nargs=-1, required=True, type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option(
+    "--alluredir",
+    "allure_dir",
+    required=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Allure results directory to write.",
+)
+@click.option("--clean-alluredir", is_flag=True, help="Empty the directory first.")
+def report_allure(run_dirs: tuple[Path, ...], allure_dir: Path, clean_alluredir: bool) -> None:
+    """Export finished runs (run directories, or e.g. reports/runs) as Allure results."""
+    from mtf.reporting.allure import export_run, find_run_dirs, prepare_results_dir, write_executor
+
+    found = find_run_dirs(run_dirs)
+    if not found:
+        _fail("no run directories (with result.json) found", EXIT_USAGE)
+    try:
+        prepare_results_dir(allure_dir, clean=clean_alluredir)
+        for run_dir in found:
+            export_run(run_dir, allure_dir)
+    except MtfError as exc:
+        _fail(exc.message)
+    write_executor(allure_dir, os.environ)
+    click.echo(f"exported {len(found)} run(s) to {allure_dir}")
 
 
 @report.command("advise")

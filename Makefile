@@ -7,12 +7,17 @@ IOS_APP ?= artifacts/ios/MobileTestPlayground.app
 SIMULATOR ?= iPhone 17
 IOS_VERSION ?=
 MTF := uv run mtf
+# Allure: every test target also writes Allure results; the HTML needs the Allure 2 CLI (Java 8+).
+ALLURE_RESULTS ?= reports/allure-results
+ALLURE_REPORT ?= reports/allure-report
+ALLURE ?= npx --yes allure-commandline@2.46.1
 ANDROID_RUNNER := framework/android-runner
 IOS_RUNNER := framework/ios-runner
 
 .PHONY: help setup lint format typecheck test check validate contracts-check \
 	android-runner android-runner-lint ios-runner ios-runner-lint \
-	test-api test-android test-ios docker-build docker-test-api clean
+	test-api test-android test-ios allure-export allure-report allure-serve \
+	docker-build docker-test-api clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
@@ -59,13 +64,26 @@ ios-runner-lint: ## SwiftLint (strict) for the framework's XCUITest runner
 
 # --- test runs against PREBUILT artifacts ---
 test-api: ## API plans against the backend of ENV (no simulator)
-	$(MTF) run plans/api --platform api --env $(ENV)
+	$(MTF) run plans/api --platform api --env $(ENV) --alluredir $(ALLURE_RESULTS)
 
 test-android: ## Shared + Android plans against APK on DEVICE (or the only connected device)
-	$(MTF) run plans/shared plans/android --platform android --env $(ENV) --apk $(APK) $(if $(DEVICE),--device $(DEVICE),)
+	$(MTF) run plans/shared plans/android --platform android --env $(ENV) --apk $(APK) $(if $(DEVICE),--device $(DEVICE),) \
+		--alluredir $(ALLURE_RESULTS)
 
 test-ios: ## Shared + iOS plans against IOS_APP on SIMULATOR (test-without-building)
-	$(MTF) run plans/shared plans/ios --platform ios --env $(ENV) --app $(IOS_APP) --simulator "$(SIMULATOR)" $(if $(IOS_VERSION),--ios-version $(IOS_VERSION),)
+	$(MTF) run plans/shared plans/ios --platform ios --env $(ENV) --app $(IOS_APP) --simulator "$(SIMULATOR)" $(if $(IOS_VERSION),--ios-version $(IOS_VERSION),) \
+		--alluredir $(ALLURE_RESULTS)
+
+# --- Allure ---
+allure-export: ## Rebuild ALLURE_RESULTS from every finished run in reports/runs
+	$(MTF) report allure reports/runs --alluredir $(ALLURE_RESULTS) --clean-alluredir
+
+allure-report: ## Generate the Allure HTML report (keeps the trend of the previous report)
+	@if [ -d $(ALLURE_REPORT)/history ]; then cp -R $(ALLURE_REPORT)/history $(ALLURE_RESULTS)/; fi
+	$(ALLURE) generate --clean -o $(ALLURE_REPORT) $(ALLURE_RESULTS)
+
+allure-serve: ## Open the generated Allure report in a browser
+	$(ALLURE) open $(ALLURE_REPORT)
 
 # --- Docker (CLI + API tests only; no emulator, no Xcode) ---
 docker-build: ## Build the MTF image

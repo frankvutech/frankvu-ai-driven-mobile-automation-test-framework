@@ -117,8 +117,8 @@ class _Run:
         self.run_id = request.run_id or _new_run_id(self.plan.name, self.platform)
         self.run_dir = request.reports_dir / "runs" / self.run_id
         self.evidence_dir = self.run_dir / "evidence"
-        self.redactor = Redactor()
         self.secrets = SecretProvider(orchestrator.contracts.test_data, request.environ)
+        self.redactor = Redactor(self.secrets.configured_values())
         self.events = request.events
         self.started = time.monotonic()
         self.run_deadline = self.started + request.environment.timeouts.run_s
@@ -134,6 +134,8 @@ class _Run:
             plan=PlanInfo(
                 name=self.plan.name,
                 title=self.plan.title,
+                description=self.plan.description,
+                tags=list(self.plan.tags),
                 dsl_version=self.plan.version,
                 sha256=plan_hash(self.plan),
                 path=str(request.plan_path) if request.plan_path else None,

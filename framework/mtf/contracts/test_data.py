@@ -108,6 +108,15 @@ class SecretProvider:
             )
         return value
 
+    def configured_values(self) -> list[str]:
+        """Every account password that is set, whether or not the current plan uses it.
+
+        A reused runner session (or its log) can still hold text typed by an earlier plan, so a run
+        must be able to redact secrets that it never resolved itself.
+        """
+        variables = (str(account["password_env"]) for account in self.registry.accounts.values())
+        return [value for var in variables if (value := self.environ.get(var))]
+
     def missing(self, paths: list[str]) -> list[str]:
         """Environment variables that are not set for the given secret references."""
         out = []

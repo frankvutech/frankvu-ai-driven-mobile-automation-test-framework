@@ -60,7 +60,12 @@ jobs:
       - name: Contract drift check
         run: uv run mtf contracts check-openapi --base-url http://localhost:8080
       - name: API plans
-        run: uv run mtf run plans/api --platform api --env ci
+        run: uv run mtf run plans/api --platform api --env ci --alluredir reports/allure-results
+      - name: Allure report
+        if: always()
+        continue-on-error: true  # the report is a view of the results; it never decides the job's outcome
+        run: |
+          if [ -d reports/allure-results ]; then make allure-report; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

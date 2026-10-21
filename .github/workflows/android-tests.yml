@@ -94,7 +94,12 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot-save
-          script: uv run mtf run plans/shared plans/android --platform android --env ci --apk "$APK"
+          script: uv run mtf run plans/shared plans/android --platform android --env ci --apk "$APK" --alluredir reports/allure-results
+      - name: Allure report
+        if: always()
+        continue-on-error: true  # the report is a view of the results; it never decides the job's outcome
+        run: |
+          if [ -d reports/allure-results ]; then make allure-report; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

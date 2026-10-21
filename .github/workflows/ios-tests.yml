@@ -79,7 +79,12 @@ jobs:
           python-version: "3.12"
       - run: uv sync
       - name: Run plans on the simulator (test-without-building)
-        run: uv run mtf run plans/shared plans/ios --platform ios --env ci --app "$IOS_APP" --simulator "${{ inputs.simulator }}"
+        run: uv run mtf run plans/shared plans/ios --platform ios --env ci --app "$IOS_APP" --simulator "${{ inputs.simulator }}" --alluredir reports/allure-results
+      - name: Allure report
+        if: always()
+        continue-on-error: true  # the report is a view of the results; it never decides the job's outcome
+        run: |
+          if [ -d reports/allure-results ]; then make allure-report; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
