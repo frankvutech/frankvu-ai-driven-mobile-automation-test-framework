@@ -21,7 +21,9 @@
   literal passwords in password parameters and sensitive fields, JWT/bearer/API-key shaped strings,
   and literals equal to known secret values. A run whose secrets are not configured is rejected
   before anything starts.
-* The **redactor** (`core/redaction.py`) knows every resolved secret and token of the run and masks
+* The **redactor** (`core/redaction.py`) knows every configured account password from the start of
+  the run (not only the ones the plan resolves: a reused runner session's log can still hold text
+  typed by an earlier plan), every token of the run, and masks
   JWTs, bearer tokens, provider keys and sensitive JSON keys/headers. Everything written — JSON and
   HTML reports, the event log, API exchanges, UI hierarchies, device logs, error messages, AI prompts —
   passes through it. Unit tests assert that no secret value or token appears in any run file.
@@ -59,3 +61,5 @@
 
 Reports can contain screenshots of the app and backend responses. They are written under `reports/`
 (git-ignored); CI uploads them as workflow artifacts with the repository's retention policy.
+Allure results are produced only from the finished, redacted run directory — see
+[Allure](allure.md#secrets).

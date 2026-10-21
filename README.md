@@ -15,20 +15,22 @@ never builds or modifies the application under test.
 * **API automation** with contract checks, token handling and redaction, also inside UI plans for
   UI↔backend correlation.
 * **Evidence** — JSON + HTML reports with screenshots, UI hierarchies, device logs, crash logs,
-  redacted API exchanges, artifact checksums and versions, device details.
+  redacted API exchanges, artifact checksums and versions, device details — plus
+  [Allure](docs/allure.md) results for one combined report with history, retries and categories.
 
 ```text
 CLI ─► AI Planner ─► Test Plan DSL ─► Validator + policy ─► Orchestrator ─┬─► Android runner (UIAutomator, on device)
                                                                          ├─► iOS runner (XCUITest, in simulator)
                                                                          └─► API runner (httpx + OpenAPI)
-                                                         events ─► result.json · report.html · events.jsonl
+                                                         events ─► result.json · report.html · events.jsonl · allure-results
 ```
 
 Details: [architecture](docs/architecture.md) · [DSL](docs/test-plan-dsl.md) ·
 [contract](docs/test-contract.md) · [Screenplay & robots](docs/screenplay-and-screen-robots.md) ·
 [artifacts](docs/prebuilt-app-artifacts.md) · [Android runner](docs/android-runner.md) ·
 [iOS runner](docs/ios-runner.md) · [API testing](docs/api-testing.md) · [AI planner](docs/ai-planner.md) ·
-[security](docs/security.md) · [CI](docs/ci.md) · [troubleshooting](docs/troubleshooting.md)
+[Allure](docs/allure.md) · [security](docs/security.md) · [CI](docs/ci.md) ·
+[troubleshooting](docs/troubleshooting.md)
 
 ## Repository layout
 
@@ -76,7 +78,8 @@ make test-ios IOS_APP=artifacts/ios/MobileTestPlayground.app SIMULATOR="iPhone 1
 ```
 
 Each run writes `reports/runs/<run-id>/report.html` (and `result.json`, `events.jsonl`, `evidence/`);
-`mtf run` exits non-zero if any plan did not pass.
+`mtf run` exits non-zero if any plan did not pass. The `make test-*` targets also write Allure results;
+`make allure-report` builds one HTML report across all of them ([details](docs/allure.md)).
 
 ## Authoring and validating a plan
 
@@ -137,7 +140,8 @@ Everything below was **actually run** on the development Mac (macOS, Apple Silic
 
 | Check | Result |
 |---|---|
-| `make check`: ruff, ruff format, mypy `--strict`, 190 unit tests, schema up to date, 26 plans valid | ✅ all passed |
+| `make check`: ruff, ruff format, mypy `--strict`, 197 unit tests, schema up to date, 26 plans valid | ✅ all passed |
+| Allure: `make test-api` with `--alluredir` against the prebuilt backend, then `make allure-report` (Allure 2.46.1); the 82 earlier Android/iOS/API runs exported with `mtf report allure`; results also generated with Allure 3.21.0 | ✅ reports generated; suites, fixtures, steps, attachments, retries, categories and environment checked in the browser; no password in results or HTML |
 | Android runner: ktlint, Android Lint (warnings as errors), `assembleDebug` of the **runner only** | ✅ clean, builds |
 | iOS runner: SwiftLint `--strict`, XcodeGen + `build-for-testing` of the **runner only** | ✅ clean, builds |
 | Android, prebuilt `app-debug.apk` (sha256 `b0e8b31a…`, 1.0.0 (1)) installed unchanged and version-verified, API 34 arm64 emulator | ✅ **17/17 plans passed** (`plans/shared` + `plans/android`); scroll-heavy plans re-run 6× green |

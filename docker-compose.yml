@@ -25,4 +25,4 @@ services:
       MTF_PASSWORD_LOCKED: ${MTF_PASSWORD_LOCKED:?set MTF_PASSWORD_LOCKED}
     volumes:
       - ./reports:/work/reports
-    command: ["run", "plans/api", "--platform", "api", "--env", "docker"]
+    command: ["run", "plans/api", "--platform", "api", "--env", "docker", "--alluredir", "reports/allure-results"]
