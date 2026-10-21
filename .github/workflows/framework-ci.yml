@@ -45,6 +45,9 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: android-actions/setup-android@v3
+        with:
+          # The default list includes the retired 'tools' package, which sdkmanager can no longer find.
+          packages: platform-tools
       - name: Build and lint the runner
         working-directory: framework/android-runner
         run: ./gradlew --no-daemon :runner:ktlintCheck :runner:lintDebug :runner:assembleDebug

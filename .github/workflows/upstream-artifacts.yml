@@ -38,6 +38,9 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: android-actions/setup-android@v3
+        with:
+          # The default list includes the retired 'tools' package, which sdkmanager can no longer find.
+          packages: platform-tools
       - name: Build the APK (app's own build)
         run: cd app/android && ./gradlew --no-daemon :app:assembleDebug
       - name: Build the backend JAR (app's own build)

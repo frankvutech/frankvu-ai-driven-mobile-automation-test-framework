@@ -66,6 +66,9 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: android-actions/setup-android@v3
+        with:
+          # The default list includes the retired 'tools' package, which sdkmanager can no longer find.
+          packages: platform-tools
       - name: Build the framework runner APK (not the app)
         working-directory: framework/android-runner
         run: ./gradlew --no-daemon :runner:assembleDebug
