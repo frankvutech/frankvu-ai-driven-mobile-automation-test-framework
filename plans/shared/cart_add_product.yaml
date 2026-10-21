@@ -1,0 +1,40 @@
+version: 1
+name: cart_add_product
+title: Add a product to the cart (UI) and confirm it in the UI and in the backend
+description: >
+  A signed-in customer adds Product 001 from the catalog. The cart screen lists it with quantity 1 and
+  the product's price as total, and the backend cart (read through the API) agrees with the UI.
+tags: [cart, smoke, ui-api-correlation]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults:
+  actor: customer
+  timeout_ms: 10000
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+steps:
+  - task: login
+  - task: add_product_to_cart
+    with: {product: product_001}
+  - task: open_cart
+  - assert:
+      question: product_is_in_cart
+      with: {product: product_001}
+      expect: {equals: true}
+      timeout_ms: 5000
+  - assert:
+      question: cart_item_quantity
+      with: {product: product_001}
+      expect: {equals: 1}
+  - assert:
+      question: cart_total
+      expect: {equals: "${products.product_001.price_display}"}
+  - assert:
+      question: api_cart_quantity
+      with: {product: product_001}
+      expect: {equals: 1}
+cleanup:
+  - fixture: clear_cart

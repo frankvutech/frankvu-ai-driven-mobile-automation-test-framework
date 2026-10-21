@@ -1,0 +1,26 @@
+# Local development: the backend runs on this machine (e.g. `java -jar backend.jar` from the app's
+# prebuilt backend artifact, or the app repo's `make backend-run`). Test-support endpoints are enabled.
+name: local
+kind: local
+description: Backend on localhost:8080 with seed data and the reset endpoint enabled.
+backend:
+  base_url: http://localhost:8080
+  allowed_hosts: [localhost, 127.0.0.1]
+  test_support: true
+  verify_tls: false
+  timeout_s: 15
+android:
+  app_id: com.mobiletestplayground.app
+  # The prebuilt debug APK talks to http://10.0.2.2:8080/ (the emulator's alias for this machine).
+  backend_url: http://10.0.2.2:8080/
+ios:
+  bundle_id: com.mobiletestplayground.app
+  # The simulator shares this Mac's network: localhost reaches the same backend.
+  backend_url: http://localhost:8080
+  backend_url_argument: -backendURL
+  clean_state_argument: -uiTestReset
+  launch_arguments: ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+timeouts:
+  default_step_ms: 10000
+  run_s: 1800
+  runner_start_s: 240

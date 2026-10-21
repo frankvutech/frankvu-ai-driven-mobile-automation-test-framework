@@ -1,0 +1,38 @@
+{
+  "provider": "anthropic",
+  "model": "claude-opus-5-5",
+  "note": "Recorded planner session used by unit tests and the offline demo (mtf plan generate --provider recorded). The first candidate invents a task and is rejected by the validator; the repaired second candidate is valid.",
+  "responses": {
+    "plan": [
+      {
+        "needs_clarification": false,
+        "clarification_questions": [],
+        "explanation": "Logs in, buys one product and checks the order.",
+        "assumptions": [
+          "Uses the seeded customer account."
+        ],
+        "plan_json": "{\"version\": 1, \"name\": \"checkout_places_order\", \"title\": \"Checkout from the UI creates an order the backend agrees with\", \"tags\": [\"checkout\", \"ai\"], \"platforms\": [\"android\", \"ios\"], \"actors\": {\"customer\": {\"account\": \"customer\"}}, \"defaults\": {\"actor\": \"customer\", \"timeout_ms\": 10000}, \"preconditions\": [{\"fixture\": \"reset_backend_data\"}, {\"fixture\": \"launch_app\", \"with\": {\"clean_state\": true}}], \"steps\": [{\"task\": \"login\"}, {\"task\": \"purchase_everything\"}, {\"assert\": {\"question\": \"order_number\", \"expect\": {\"matches\": \"ORDER-\\\\d{4}\"}}}], \"cleanup\": [{\"fixture\": \"clear_cart\"}]}"
+      },
+      {
+        "needs_clarification": false,
+        "clarification_questions": [],
+        "explanation": "A signed-in customer adds Product 003 from the catalog and checks out. The UI must show an order number in the ORDER-NNNN format, the backend's latest order for the customer must have the same number, and the backend cart must be empty afterwards.",
+        "assumptions": [
+          "The seeded customer account is used (accounts.customer).",
+          "Product 003 is in stock in the seed data.",
+          "The app runs in backend mode, so the UI order is the backend order."
+        ],
+        "plan_json": "{\"version\": 1, \"name\": \"checkout_places_order\", \"title\": \"Checkout from the UI creates an order the backend agrees with\", \"tags\": [\"checkout\", \"ai\"], \"platforms\": [\"android\", \"ios\"], \"actors\": {\"customer\": {\"account\": \"customer\"}}, \"defaults\": {\"actor\": \"customer\", \"timeout_ms\": 10000}, \"preconditions\": [{\"fixture\": \"reset_backend_data\"}, {\"fixture\": \"launch_app\", \"with\": {\"clean_state\": true}}], \"steps\": [{\"task\": \"login\"}, {\"task\": \"add_product_to_cart\", \"with\": {\"product\": \"product_003\"}}, {\"task\": \"checkout\"}, {\"assert\": {\"question\": \"order_number\", \"expect\": {\"matches\": \"ORDER-\\\\d{4}\"}, \"timeout_ms\": 5000, \"save\": \"ui_order_number\"}}, {\"assert\": {\"question\": \"api_latest_order_number\", \"expect\": {\"equals\": \"${vars.ui_order_number}\"}}}, {\"assert\": {\"question\": \"api_cart_total_cents\", \"expect\": {\"equals\": 0}}}], \"cleanup\": [{\"fixture\": \"clear_cart\"}]}"
+      }
+    ],
+    "advise": [
+      {
+        "summary": "The order-number assertion failed because the UI showed no confirmation after checkout.",
+        "suspected_causes": [
+          "The checkout request returned an error (see cart_error)."
+        ],
+        "suggested_plan_changes": []
+      }
+    ]
+  }
+}

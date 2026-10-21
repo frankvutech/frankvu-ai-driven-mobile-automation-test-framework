@@ -1,0 +1,25 @@
+version: 1
+name: checkout_order_confirmation
+title: Checkout shows an order confirmation that matches the backend order
+tags: [checkout, ui-api-correlation, smoke]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: add_product_to_cart
+    with: {product: product_003}
+  - task: checkout
+  - assert:
+      question: order_number
+      expect: {equals: ORDER-0001}
+      timeout_ms: 10000
+      save: ui_order_number
+  - assert: {question: api_latest_order_number, expect: {equals: "${vars.ui_order_number}"}}
+  - assert: {question: api_order_count, expect: {equals: 1}}
+  - assert: {question: api_cart_total_cents, expect: {equals: 0}}

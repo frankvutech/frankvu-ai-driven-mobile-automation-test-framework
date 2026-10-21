@@ -1,0 +1,6 @@
+included:
+  - MTFRunnerUITests
+line_length: 140          # same limit as the Kotlin runner (ktlint)
+type_body_length:         # Commands is the single, closed command dispatcher
+  warning: 350
+  error: 500

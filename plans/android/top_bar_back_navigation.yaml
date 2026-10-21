@@ -1,0 +1,25 @@
+version: 1
+name: top_bar_back_navigation
+title: The Compose top app bar's back button pops the stack (Android-only element)
+tags: [navigation, android]
+platforms: [android]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: open_scenario
+    with: {scenario: navigation}
+  - interaction: tap
+    target: nav_push_detail
+  - wait: {target: nav_detail_screen, timeout_ms: 5000}
+  - interaction: tap
+    target: top_bar_back
+  - wait: {target: navigation_screen, timeout_ms: 5000}
+  - interaction: tap
+    target: top_bar_back
+  - wait: {target: home_screen, timeout_ms: 5000}

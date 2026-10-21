@@ -1,0 +1,20 @@
+# Run configuration: which prebuilt artifacts to test and on which device.
+# Copy to config/run.local.yaml (git-ignored) and use: mtf run <plans> --platform <p> --run-config config/run.local.yaml
+# CLI flags (--apk, --app, --device, --simulator, ...) override these values.
+environment: local          # config/environments/<name>.yaml
+reports_dir: reports
+
+android:
+  apk: artifacts/android/app-debug.apk         # the application, installed unchanged
+  app_id: com.mobiletestplayground.app
+  device_serial: emulator-5554                  # omit to use the only connected device
+  runner_apk: framework/android-runner/runner/build/outputs/apk/debug/runner-debug.apk
+  reinstall: true
+
+ios:
+  app: artifacts/ios/MobileTestPlayground.app  # simulator build of the application
+  bundle_id: com.mobiletestplayground.app
+  simulator: iPhone 17
+  os_version: "26.5"                            # omit for the newest installed runtime
+  # xctestrun: framework/ios-runner/build/DerivedData/Build/Products/<name>.xctestrun  (default: found automatically)
+  reinstall: true

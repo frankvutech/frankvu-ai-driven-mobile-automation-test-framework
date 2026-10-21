@@ -1,0 +1,16 @@
+version: 1
+name: deep_links
+title: A deep link while signed out redirects to login, then continues to the product
+tags: [deep-links, auth]
+platforms: [android, ios]
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+steps:
+  - task: open_deep_link
+    with: {link: product_003}
+  - assert: {question: is_visible, with: {target: login_redirect_message}, expect: {equals: true}, timeout_ms: 5000}
+  - task: submit_login
+    with: {email: "${accounts.customer.email}", password: "${secret:accounts.customer.password}"}
+  - assert: {question: product_detail_name, expect: {equals: "${products.product_003.name}"}, timeout_ms: 15000}

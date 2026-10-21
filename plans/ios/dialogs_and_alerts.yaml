@@ -1,0 +1,40 @@
+version: 1
+name: dialogs_and_alerts
+title: Confirmation, information and action-sheet dialogs report stable result codes
+description: >
+  iOS only. In the supplied Android APK the dialog and sheet contents render in separate windows
+  without testTagsAsResourceId, so the black-box runner cannot address them by ID (see
+  docs/test-contract.md). plans/android/dialogs_dismiss_with_back.yaml covers what Android exposes.
+tags: [dialogs]
+platforms: [ios]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+  - task: login
+steps:
+  - task: open_scenario
+    with: {scenario: dialogs}
+  - task: open_dialog
+    with: {kind: confirmation}
+  - task: respond_to_dialog
+    with: {choice: cancel}
+  - assert: {question: dialog_result, expect: {equals: cancelled}, timeout_ms: 3000}
+  - task: open_dialog
+    with: {kind: confirmation}
+  - task: respond_to_dialog
+    with: {choice: confirm}
+  - assert: {question: dialog_result, expect: {equals: confirmed}, timeout_ms: 3000}
+  - task: open_dialog
+    with: {kind: information}
+  - task: respond_to_dialog
+    with: {choice: ok}
+  - assert: {question: dialog_result, expect: {equals: information_ok}, timeout_ms: 3000}
+  - task: open_dialog
+    with: {kind: action_sheet}
+  - task: choose_action_sheet_option
+    with: {option: share}
+  - assert: {question: dialog_result, expect: {equals: action_share}, timeout_ms: 3000}

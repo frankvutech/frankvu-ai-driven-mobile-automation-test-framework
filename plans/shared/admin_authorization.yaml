@@ -1,0 +1,29 @@
+version: 1
+name: admin_authorization
+title: A customer is denied the admin area; an admin is allowed in
+tags: [authorization, deep-links]
+platforms: [android, ios]
+actors:
+  customer: {account: customer}
+  admin: {account: admin}
+preconditions:
+  - fixture: reset_backend_data
+  - fixture: launch_app
+    with: {clean_state: true}
+steps:
+  - task: login
+    actor: customer
+  - task: open_deep_link
+    with: {link: admin}
+  - assert: {question: access_denied_shown, expect: {equals: true}, timeout_ms: 5000}
+  - assert: {question: is_visible, with: {target: admin_dashboard}, expect: {equals: false}}
+  - interaction: relaunch_app
+    with: {clean_state: true}
+  - task: login
+    actor: admin
+  - task: open_tab
+    with: {tab: profile}
+  - assert: {question: profile_role, actor: admin, expect: {equals: ADMIN}, timeout_ms: 5000}
+  - task: open_deep_link
+    with: {link: admin}
+  - assert: {question: is_visible, with: {target: admin_dashboard}, expect: {equals: true}, timeout_ms: 5000}

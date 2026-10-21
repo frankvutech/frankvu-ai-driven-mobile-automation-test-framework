@@ -1,0 +1,127 @@
+version: 1
+name: api_products
+title: Product listing, detail, search, filtering, sorting and pagination
+tags: [api, catalog]
+platforms: [api]
+preconditions:
+  - fixture: reset_backend_data
+steps:
+  - id: default_page
+    api:
+      method: GET
+      path: /api/v1/products
+      expect:
+        status: 200
+        json:
+          - {path: page, equals: 1}
+          - {path: size, equals: 10}
+          - {path: totalItems, equals: 20}
+          - {path: totalPages, equals: 2}
+          - {path: items.length, equals: 10}
+          - {path: "items[0].id", equals: product_001}
+  - id: detail
+    api:
+      method: GET
+      path: /api/v1/products/{id}
+      path_params: {id: product_003}
+      expect:
+        status: 200
+        json:
+          - {path: name, equals: "${products.product_003.name}"}
+          - {path: category, equals: "${products.product_003.category}"}
+          - {path: priceCents, equals: "${products.product_003.price_cents}"}
+  - id: detail_not_found
+    api:
+      method: GET
+      path: /api/v1/products/{id}
+      path_params: {id: product_999}
+      expect:
+        status: 404
+        json:
+          - {path: error.code, equals: PRODUCT_NOT_FOUND}
+  - id: search
+    api:
+      method: GET
+      path: /api/v1/products
+      query: {q: "product 01"}
+      expect:
+        status: 200
+        json:
+          - {path: totalItems, equals: 10}
+          - {path: "items[0].id", equals: product_010}
+  - id: search_empty_results
+    api:
+      method: GET
+      path: /api/v1/products
+      query: {q: zzz}
+      expect:
+        status: 200
+        json:
+          - {path: totalItems, equals: 0}
+          - {path: items.length, equals: 0}
+  - id: filter_by_category
+    api:
+      method: GET
+      path: /api/v1/products
+      query: {category: Books}
+      expect:
+        status: 200
+        json:
+          - {path: totalItems, equals: 5}
+          - {path: "items[0].category", equals: Books}
+  - id: sort_price_descending
+    api:
+      method: GET
+      path: /api/v1/products
+      query: {sort: price_desc, size: 1}
+      expect:
+        status: 200
+        json:
+          - {path: "items[0].id", equals: product_020}
+  - id: filter_sort_and_page_combined
+    api:
+      method: GET
+      path: /api/v1/products
+      query: {category: Books, sort: price_desc, size: 2, page: 2}
+      expect:
+        status: 200
+        json:
+          - {path: "items[0].id", equals: product_009}
+          - {path: "items[1].id", equals: product_005}
+          - {path: totalPages, equals: 3}
+  - id: last_partial_page
+    api:
+      method: GET
+      path: /api/v1/products
+      query: {size: 7, page: 3}
+      expect:
+        status: 200
+        json:
+          - {path: items.length, equals: 6}
+  - id: page_past_the_end
+    api:
+      method: GET
+      path: /api/v1/products
+      query: {size: 7, page: 4}
+      expect:
+        status: 200
+        json:
+          - {path: items.length, equals: 0}
+          - {path: totalItems, equals: 20}
+  - id: invalid_page_size
+    api:
+      method: GET
+      path: /api/v1/products
+      query: {size: 51}
+      expect:
+        status: 400
+        json:
+          - {path: error.code, equals: VALIDATION_ERROR}
+  - id: categories
+    api:
+      method: GET
+      path: /api/v1/categories
+      expect:
+        status: 200
+        json:
+          - {path: $, equals: [Books, Electronics, Garden, Toys]}

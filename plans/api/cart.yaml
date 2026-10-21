@@ -1,0 +1,128 @@
+version: 1
+name: api_cart
+title: Cart add, update, remove, clear and stock conflicts
+tags: [api, cart]
+platforms: [api]
+actors:
+  customer: {account: customer}
+defaults: {actor: customer}
+preconditions:
+  - fixture: reset_backend_data
+steps:
+  - id: starts_empty
+    api:
+      method: GET
+      path: /api/v1/cart
+      as: customer
+      expect:
+        status: 200
+        json:
+          - {path: items.length, equals: 0}
+          - {path: totalCents, equals: 0}
+  - id: add
+    api:
+      method: POST
+      path: /api/v1/cart/items
+      as: customer
+      body: {productId: product_001, quantity: 2}
+      expect:
+        status: 201
+        json:
+          - {path: "items[0].product.id", equals: product_001}
+          - {path: "items[0].quantity", equals: 2}
+          - {path: totalCents, equals: 1498}
+  - id: add_again_accumulates
+    api:
+      method: POST
+      path: /api/v1/cart/items
+      as: customer
+      body: {productId: product_001, quantity: 1}
+      expect:
+        status: 201
+        json:
+          - {path: "items[0].quantity", equals: 3}
+          - {path: totalQuantity, equals: 3}
+  - id: update_quantity
+    api:
+      method: PATCH
+      path: /api/v1/cart/items/{productId}
+      path_params: {productId: product_001}
+      as: customer
+      body: {quantity: 5}
+      expect:
+        status: 200
+        json:
+          - {path: "items[0].quantity", equals: 5}
+          - {path: totalCents, equals: 3745}
+  - id: quantity_above_limit
+    api:
+      method: PATCH
+      path: /api/v1/cart/items/{productId}
+      path_params: {productId: product_001}
+      as: customer
+      body: {quantity: 11}
+      expect:
+        status: 400
+        json:
+          - {path: error.code, equals: VALIDATION_ERROR}
+  - id: add_second_product
+    api:
+      method: POST
+      path: /api/v1/cart/items
+      as: customer
+      body: {productId: product_002}
+      expect:
+        status: 201
+        json:
+          - {path: items.length, equals: 2}
+  - id: remove_line
+    api:
+      method: DELETE
+      path: /api/v1/cart/items/{productId}
+      path_params: {productId: product_001}
+      as: customer
+      expect:
+        status: 200
+        json:
+          - {path: items.length, equals: 1}
+          - {path: "items[0].product.id", equals: product_002}
+  - id: remove_missing_line
+    api:
+      method: DELETE
+      path: /api/v1/cart/items/{productId}
+      path_params: {productId: product_001}
+      as: customer
+      expect:
+        status: 404
+        json:
+          - {path: error.code, equals: CART_ITEM_NOT_FOUND}
+  - id: sold_out_conflict
+    api:
+      method: POST
+      path: /api/v1/cart/items
+      as: customer
+      body: {productId: product_020}
+      expect:
+        status: 409
+        json:
+          - {path: error.code, equals: INSUFFICIENT_STOCK}
+  - id: unknown_product
+    api:
+      method: POST
+      path: /api/v1/cart/items
+      as: customer
+      body: {productId: product_999}
+      expect:
+        status: 404
+        json:
+          - {path: error.code, equals: PRODUCT_NOT_FOUND}
+  - id: clear
+    api:
+      method: DELETE
+      path: /api/v1/cart
+      as: customer
+      expect:
+        status: 200
+        json:
+          - {path: items.length, equals: 0}
+          - {path: totalCents, equals: 0}
